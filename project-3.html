@@ -1,0 +1,3109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Log Monitoring Tool | Harshil Bhatt</title>
+  <meta name="description" content="End-to-end log monitoring pipeline — Express + Winston, FastAPI collector, Chart.js dashboard, GitHub Actions CI/CD, and AWS EC2 deployment — by Harshil Bhatt." />
+  <meta name="author" content="Harshil Bhatt" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Harshil Bhatt" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="apple-touch-icon" href="favicon.svg" />
+  <meta property="og:title"       content="Log Monitoring Tool with CI/CD | Harshil Bhatt" />
+  <meta property="og:description" content="Log monitoring pipeline with Winston, FastAPI, Chart.js, Docker, GitHub Actions, and AWS EC2." />
+  <meta property="og:image"       content="https://harshilbhatt.dev/og-image.png" />
+  <meta property="og:url"         content="https://harshilbhatt.dev/project-3.html" />
+  <meta property="og:type"        content="website" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+      --bg:#0a0a0a; --bg2:#111111; --bg3:#161616;
+      --accent:#ff6b35; --accent2:#e55a22;
+      --green:#4ade80; --cyan:#00d2ff; --yellow:#fbbf24; --red:#f87171; --purple:#c084fc;
+      --white:#ffffff; --grey:#888888;
+      --border:rgba(255,255,255,0.07);
+      --font:'Space Grotesk',sans-serif;
+      --ease:cubic-bezier(0.22,1,0.36,1);
+    }
+    html { scroll-behavior:smooth; }
+    body { background:var(--bg); color:var(--white); font-family:var(--font); overflow-x:hidden; }
+    a { text-decoration:none; color:inherit; }
+
+    /* cursor glow */
+    #cursor-glow {
+      position:fixed; top:0; left:0; width:700px; height:700px; border-radius:50%;
+      pointer-events:none; z-index:0;
+      background:radial-gradient(circle at center, var(--glow-color, rgba(255,107,53,0.22)) 0%, transparent 70%);
+      filter:blur(60px); will-change:transform;
+    }
+    .cursor-dot, .cursor-ring {
+      position:fixed; border-radius:50%; pointer-events:none; z-index:9999;
+      transform:translate(-50%,-50%); transition:opacity 0.3s;
+    }
+    .cursor-dot  { width:8px; height:8px; background:var(--accent); }
+    .cursor-ring {
+      width:36px; height:36px; border:1.5px solid rgba(255,107,53,0.5);
+      transition:width 0.3s var(--ease), height 0.3s var(--ease), background 0.3s;
+    }
+    .cursor-ring.hovered { width:60px; height:60px; background:rgba(255,107,53,0.08); }
+
+    /* back button */
+    .back-btn {
+      position:fixed; top:24px; left:32px; z-index:100;
+      display:inline-flex; align-items:center; gap:8px;
+      font-size:.8rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+      color:var(--grey); background:rgba(255,255,255,.05); border:1px solid var(--border);
+      padding:10px 18px; border-radius:100px; transition:color .3s,background .3s;
+    }
+    .back-btn:hover { color:var(--accent); background:rgba(255,107,53,.08); }
+
+    /* hero */
+    .proj-hero {
+      min-height:55vh; display:flex; align-items:flex-end;
+      padding:120px 60px 60px; position:relative;
+      background:linear-gradient(135deg,#1a0d04 0%,#2d1a08 55%,#0a0a0a 100%); overflow:hidden;
+    }
+    .proj-hero::before {
+      content:''; position:absolute; inset:0;
+      background:
+        radial-gradient(ellipse 60% 80% at 18% 42%, rgba(255,107,53,.2) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 60% at 78% 22%, rgba(255,80,30,.1) 0%, transparent 60%);
+      animation:heroPulse 6s ease-in-out infinite alternate;
+    }
+    @keyframes heroPulse { 0%{opacity:.7} 100%{opacity:1} }
+    .proj-hero-grid {
+      position:absolute; inset:0;
+      background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);
+      background-size:40px 40px;
+    }
+    .proj-hero-content { position:relative; z-index:2; max-width:860px; }
+    .proj-tag { display:inline-block; font-size:.72rem; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); margin-bottom:16px; }
+    .proj-hero h1 { font-size:clamp(2.4rem,6vw,5rem); font-weight:900; letter-spacing:-.03em; line-height:1; margin-bottom:20px; }
+    .proj-hero p { font-size:1.1rem; color:rgba(255,255,255,.65); line-height:1.7; max-width:640px; margin-bottom:32px; }
+    .pill-row { display:flex; flex-wrap:wrap; gap:8px; }
+    .pill { font-size:.72rem; font-weight:700; letter-spacing:.06em; padding:5px 14px; border-radius:100px; background:rgba(10,10,10,.7); border:1px solid rgba(255,107,53,.25); color:var(--accent); backdrop-filter:blur(6px); }
+
+    /* layout */
+    .proj-body { max-width:1100px; margin:0 auto; padding:80px 40px 120px; position:relative; z-index:1; }
+
+    /* stats strip */
+    .stats-strip { display:grid; grid-template-columns:repeat(5,1fr); border:1px solid var(--border); border-radius:16px; overflow:hidden; margin-bottom:72px; }
+    .stat-box { padding:26px 16px; text-align:center; border-right:1px solid var(--border); }
+    .stat-box:last-child { border-right:none; }
+    .stat-box .num { display:block; font-size:1.8rem; font-weight:900; color:var(--accent); line-height:1; margin-bottom:6px; }
+    .stat-box .lbl { font-size:.65rem; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--grey); }
+    @media(max-width:760px){ .stats-strip{grid-template-columns:1fr 1fr} .stat-box{border-bottom:1px solid var(--border)} .stat-box:nth-child(even){border-right:none} .stat-box:last-child{border-bottom:none} }
+
+    /* section headings */
+    .sec-label { font-size:.72rem; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); margin-bottom:12px; }
+    .sec-title { font-size:clamp(1.6rem,3vw,2.4rem); font-weight:900; letter-spacing:-.02em; margin-bottom:40px; }
+
+    /* part divider */
+    .part-divider {
+      display:flex; align-items:center; gap:20px;
+      margin:0 0 64px; padding:28px 32px;
+      background:linear-gradient(135deg,rgba(255,107,53,.06) 0%,transparent 100%);
+      border:1px solid rgba(255,107,53,.15); border-radius:16px;
+    }
+    .part-divider-num { font-size:3rem; font-weight:900; color:rgba(255,107,53,.2); line-height:1; flex-shrink:0; }
+    .part-divider-title { font-size:1.3rem; font-weight:800; color:var(--white); }
+    .part-divider-desc { font-size:.85rem; color:var(--grey); line-height:1.6; margin-top:4px; }
+
+    /* code block */
+    .code-block { background:var(--bg3); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:40px; }
+    .code-block-header { padding:10px 18px; border-bottom:1px solid var(--border); font-size:.7rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--grey); display:flex; align-items:center; gap:10px; }
+    .code-block-header .lang { color:var(--accent); }
+    .code-block pre { padding:20px 18px; font-family:'Courier New',monospace; font-size:.8rem; line-height:1.75; color:rgba(255,255,255,.82); overflow-x:auto; }
+    .kw{color:#c084fc} .fn{color:var(--accent)} .st{color:#86efac} .cm{color:#555;font-style:italic} .nb{color:#fbbf24} .cy{color:#00d2ff}
+
+    /* info / warn boxes */
+    .info-box { background:rgba(255,107,53,.04); border:1px solid rgba(255,107,53,.15); border-radius:13px; padding:18px 22px; margin-bottom:28px; font-size:.84rem; color:rgba(255,255,255,.7); line-height:1.7; }
+    .info-box code { font-family:'Courier New',monospace; color:var(--accent); font-size:.8rem; background:rgba(255,107,53,.08); padding:1px 6px; border-radius:3px; }
+
+    /* endpoint cards */
+    .endpoint-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-bottom:60px; }
+    .ep-card { background:var(--bg2); border:1px solid var(--border); border-radius:14px; padding:20px 18px; transition:border-color .3s,transform .3s var(--ease); }
+    .ep-card:hover { border-color:rgba(255,107,53,.22); transform:translateY(-3px); }
+    .ep-method { font-size:.65rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; padding:3px 9px; border-radius:5px; display:inline-block; margin-bottom:8px; }
+    .ep-get  { background:rgba(0,210,255,.12); color:var(--cyan); border:1px solid rgba(0,210,255,.2); }
+    .ep-post { background:rgba(255,107,53,.12); color:var(--accent); border:1px solid rgba(255,107,53,.2); }
+    .ep-path { font-family:'Courier New',monospace; font-size:.88rem; font-weight:700; color:var(--white); margin-bottom:6px; }
+    .ep-desc { font-size:.78rem; color:var(--grey); line-height:1.55; margin-bottom:8px; }
+    .ep-behavior { font-size:.72rem; color:rgba(255,255,255,.45); font-style:italic; }
+    .ep-log-level { font-size:.62rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:2px 8px; border-radius:100px; margin-top:8px; display:inline-flex; }
+    .level-info  { background:rgba(74,222,128,.1);  color:var(--green);  border:1px solid rgba(74,222,128,.2); }
+    .level-warn  { background:rgba(251,191,36,.1);  color:var(--yellow); border:1px solid rgba(251,191,36,.2); }
+    .level-error { background:rgba(248,113,113,.1); color:var(--red);    border:1px solid rgba(248,113,113,.2); }
+
+    /* log stream */
+    .log-stream { background:var(--bg3); border:1px solid var(--border); border-radius:16px; overflow:hidden; margin-bottom:60px; }
+    .log-stream-header { padding:12px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .log-stream-title { font-size:.82rem; font-weight:700; display:flex; align-items:center; gap:8px; }
+    .live-dot { width:8px; height:8px; border-radius:50%; background:var(--green); animation:livePulse 1.5s ease-in-out infinite; flex-shrink:0; }
+    @keyframes livePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.85)} }
+    .log-stream-body { padding:16px; font-family:'Courier New',monospace; font-size:.76rem; line-height:1.7; max-height:380px; overflow-y:auto; }
+    .log-line { padding:3px 0; border-bottom:1px solid rgba(255,255,255,.025); display:flex; gap:10px; align-items:flex-start; }
+    .log-line:last-child { border-bottom:none; }
+    .log-ts    { color:rgba(255,255,255,.3); flex-shrink:0; min-width:90px; font-size:.7rem; }
+    .log-level { flex-shrink:0; min-width:44px; font-weight:800; font-size:.72rem; }
+    .ll-info   { color:var(--green); }
+    .ll-warn   { color:var(--yellow); }
+    .ll-error  { color:var(--red); }
+    .log-msg   { color:rgba(255,255,255,.75); flex:1; word-break:break-all; }
+    .log-meta  { color:rgba(255,255,255,.3); font-size:.7rem; flex-shrink:0; text-align:right; }
+
+    /* log field table */
+    .field-table { width:100%; border-collapse:collapse; font-size:.82rem; margin-bottom:40px; }
+    .field-table th { padding:10px 16px; text-align:left; font-size:.68rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--grey); border-bottom:1px solid var(--border); }
+    .field-table td { padding:10px 16px; border-bottom:1px solid rgba(255,255,255,.03); vertical-align:top; }
+    .field-table tr:last-child td { border-bottom:none; }
+    .field-table code { font-family:'Courier New',monospace; color:var(--accent); font-size:.8rem; }
+    .field-table .req { font-size:.62rem; font-weight:700; padding:1px 7px; border-radius:100px; background:rgba(255,107,53,.1); color:var(--accent); border:1px solid rgba(255,107,53,.2); }
+
+    /* traffic simulator */
+    .traffic-ctrl { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:20px; }
+    .tc-group { display:flex; flex-direction:column; gap:5px; }
+    .tc-group label { font-size:.68rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--grey); }
+    .tc-group input, .tc-group select {
+      background:var(--bg3); border:1px solid var(--border); border-radius:8px;
+      padding:8px 12px; color:var(--white); font-family:var(--font); font-size:.85rem; outline:none;
+      transition:border-color .3s;
+    }
+    .tc-group input:focus, .tc-group select:focus { border-color:rgba(255,107,53,.4); }
+    .tc-group input[type=range] { accent-color:var(--accent); cursor:pointer; }
+
+    /* summary cards */
+    .summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:20px; }
+    .sum-card { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:16px 14px; text-align:center; }
+    .sum-num { font-size:1.6rem; font-weight:900; line-height:1; margin-bottom:4px; }
+    .sum-lbl { font-size:.65rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--grey); }
+
+    /* progress bar */
+    .prog-wrap { margin-bottom:16px; }
+    .prog-label { display:flex; justify-content:space-between; font-size:.72rem; color:var(--grey); margin-bottom:5px; }
+    .prog-track { background:rgba(255,255,255,.05); border-radius:4px; height:6px; overflow:hidden; }
+    .prog-fill  { height:100%; border-radius:4px; background:var(--accent); transition:width .3s linear; }
+
+    /* project structure */
+    .file-tree { background:var(--bg3); border:1px solid var(--border); border-radius:14px; padding:22px 24px; font-family:'Courier New',monospace; font-size:.82rem; line-height:1.9; color:rgba(255,255,255,.75); margin-bottom:60px; }
+    .ft-dir  { color:var(--accent); font-weight:700; }
+    .ft-file { color:rgba(255,255,255,.65); }
+    .ft-new  { color:var(--green); }
+    .ft-note { color:var(--grey); font-style:italic; }
+
+    /* test panel */
+    .test-suite { background:var(--bg3); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:16px; }
+    .test-suite-hdr { padding:11px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+    .test-suite-hdr h3 { font-size:.82rem; font-weight:700; display:flex; align-items:center; gap:8px; }
+    .test-suite-name { font-size:.65rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--grey); }
+    .test-row { display:flex; align-items:flex-start; gap:10px; padding:7px 18px; border-bottom:1px solid rgba(255,255,255,.025); font-size:.78rem; }
+    .test-row:last-child { border-bottom:none; }
+    .t-icon { flex-shrink:0; font-size:.82rem; }
+    .t-name { flex:1; color:rgba(255,255,255,.75); }
+    .t-ms   { color:var(--grey); font-size:.7rem; }
+    .t-pass { color:var(--green); }
+    .t-fail { color:var(--red); }
+    .test-summary { padding:10px 18px; border-top:1px solid var(--border); display:flex; gap:16px; font-size:.76rem; }
+    .ts-pass { color:var(--green); font-weight:700; }
+    .ts-total { color:var(--grey); }
+    .ts-time  { color:var(--grey); margin-left:auto; }
+
+    /* demo btn */
+    .demo-btn { display:inline-flex; align-items:center; gap:8px; background:var(--accent); color:var(--bg); font-family:var(--font); font-size:.82rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; padding:12px 28px; border-radius:100px; border:none; cursor:pointer; transition:background .3s,transform .3s var(--ease); }
+    .demo-btn:hover { background:var(--accent2); transform:translateY(-2px); }
+    .demo-btn:disabled { opacity:.45; cursor:not-allowed; transform:none; }
+    .btn-ghost { background:transparent; border:1px solid var(--border); color:var(--grey); }
+    .btn-ghost:hover { background:transparent; transform:none; color:var(--white); border-color:rgba(255,255,255,.3); }
+    .btn-sm { padding:7px 16px; font-size:.72rem; }
+    .btn-burst { background:rgba(248,113,113,.15); color:var(--red); border:1px solid rgba(248,113,113,.25); }
+    .btn-burst:hover { background:rgba(248,113,113,.25); transform:none; }
+
+    /* toast */
+    #toast3 { position:fixed; bottom:32px; right:32px; z-index:9999; padding:14px 22px; border-radius:12px; font-size:.85rem; font-weight:700; display:none; gap:10px; align-items:center; }
+    #toast3.show { display:flex; animation:slideIn .4s var(--ease); }
+    #toast3.tok  { background:rgba(74,222,128,.15); border:1px solid rgba(74,222,128,.3); color:var(--green); }
+    #toast3.terr { background:rgba(248,113,113,.12); border:1px solid rgba(248,113,113,.25); color:var(--red); }
+    #toast3.tinf { background:rgba(255,107,53,.1);  border:1px solid rgba(255,107,53,.25); color:var(--accent); }
+    @keyframes slideIn { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes fadeUp  { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+    /* ══ PART 2 STYLES — Collector API ══ */
+
+    /* API endpoint explorer */
+    .api-route-list { display:flex; flex-direction:column; gap:10px; margin-bottom:60px; }
+    .api-route { display:flex; align-items:flex-start; gap:14px; background:var(--bg2); border:1px solid var(--border); border-radius:13px; padding:18px 22px; transition:border-color .3s,transform .3s var(--ease); }
+    .api-route:hover { border-color:rgba(255,107,53,.18); transform:translateX(4px); }
+    .api-method { flex-shrink:0; font-size:.68rem; font-weight:800; letter-spacing:.08em; padding:3px 9px; border-radius:6px; text-transform:uppercase; min-width:52px; text-align:center; }
+    .m-get    { background:rgba(0,210,255,.1);    color:var(--cyan);   border:1px solid rgba(0,210,255,.2); }
+    .m-post   { background:rgba(255,107,53,.1);   color:var(--accent); border:1px solid rgba(255,107,53,.2); }
+    .api-path { font-size:.86rem; font-weight:700; font-family:'Courier New',monospace; color:var(--white); margin-bottom:3px; }
+    .api-desc { font-size:.78rem; color:var(--grey); line-height:1.5; }
+    .api-auth { margin-left:auto; flex-shrink:0; font-size:.63rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:3px 9px; border-radius:100px; }
+    .auth-open    { background:rgba(74,222,128,.1); color:var(--green); border:1px solid rgba(74,222,128,.2); }
+    .api-route-group { font-size:.65rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--grey); margin:20px 0 8px; }
+
+    /* schema table */
+    .schema-tbl { width:100%; border-collapse:collapse; font-size:.82rem; margin-bottom:40px; }
+    .schema-tbl th { padding:10px 16px; text-align:left; font-size:.68rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--grey); border-bottom:1px solid var(--border); }
+    .schema-tbl td { padding:10px 16px; border-bottom:1px solid rgba(255,255,255,.03); vertical-align:top; }
+    .schema-tbl tr:last-child td { border-bottom:none; }
+    .schema-tbl code { font-family:'Courier New',monospace; color:var(--accent); font-size:.8rem; }
+    .idx-badge { font-size:.62rem; font-weight:700; padding:1px 7px; border-radius:100px; background:rgba(0,210,255,.1); color:var(--cyan); border:1px solid rgba(0,210,255,.2); }
+    .pk-badge  { font-size:.62rem; font-weight:700; padding:1px 7px; border-radius:100px; background:rgba(255,107,53,.1); color:var(--accent); border:1px solid rgba(255,107,53,.2); }
+    .fk-badge  { font-size:.62rem; font-weight:700; padding:1px 7px; border-radius:100px; background:rgba(192,132,252,.1); color:var(--purple); border:1px solid rgba(192,132,252,.2); }
+
+    /* watcher diagram */
+    .watcher-flow { display:flex; align-items:center; gap:0; flex-wrap:wrap; margin-bottom:40px; }
+    .wf-step { flex:1; min-width:120px; background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:18px 14px; text-align:center; }
+    .wf-arrow { color:rgba(255,107,53,.4); font-size:1.1rem; padding:0 6px; flex-shrink:0; }
+    .wf-icon { font-size:1.3rem; margin-bottom:7px; }
+    .wf-name { font-size:.76rem; font-weight:700; color:var(--white); margin-bottom:3px; }
+    .wf-desc { font-size:.68rem; color:var(--grey); line-height:1.4; }
+
+    /* live API demo */
+    .api-demo-box { background:var(--bg2); border:1px solid var(--border); border-radius:20px; overflow:hidden; margin-bottom:60px; }
+    .api-demo-tabs { display:flex; border-bottom:1px solid var(--border); overflow-x:auto; }
+    .api-demo-tab { flex-shrink:0; padding:12px 18px; font-size:.75rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--grey); cursor:pointer; background:none; border:none; font-family:var(--font); border-bottom:2px solid transparent; margin-bottom:-1px; transition:color .25s; }
+    .api-demo-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+    .api-demo-pane { display:none; padding:28px; }
+    .api-demo-pane.active { display:block; animation:fadeUp .3s var(--ease); }
+
+    /* JSON response viewer */
+    .json-viewer { background:var(--bg3); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+    .json-viewer-header { padding:9px 16px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border); font-size:.7rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--grey); }
+    .json-viewer pre { padding:16px; font-family:'Courier New',monospace; font-size:.78rem; line-height:1.65; color:rgba(255,255,255,.82); overflow-x:auto; max-height:320px; overflow-y:auto; }
+    .j-key   { color:var(--cyan); }
+    .j-str   { color:var(--green); }
+    .j-num   { color:var(--yellow); }
+    .j-bool  { color:var(--accent); }
+    .j-null  { color:var(--grey); }
+
+    /* stats cards */
+    .stats-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px; margin-bottom:28px; }
+    .sc-card { background:var(--bg3); border:1px solid var(--border); border-radius:12px; padding:18px 16px; text-align:center; transition:border-color .3s; }
+    .sc-card:hover { border-color:rgba(255,107,53,.2); }
+    .sc-num  { font-size:1.6rem; font-weight:900; line-height:1; margin-bottom:4px; }
+    .sc-lbl  { font-size:.65rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--grey); }
+
+    /* errors-per-hour mini chart */
+    .eph-chart { background:var(--bg3); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:16px; }
+    .eph-title { font-size:.75rem; font-weight:700; color:var(--grey); margin-bottom:12px; }
+
+    /* slowest endpoints table */
+    .slow-table { width:100%; border-collapse:collapse; font-size:.8rem; }
+    .slow-table th { padding:9px 14px; text-align:left; font-size:.65rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--grey); border-bottom:1px solid var(--border); }
+    .slow-table td { padding:9px 14px; border-bottom:1px solid rgba(255,255,255,.03); }
+    .slow-table tr:last-child td { border-bottom:none; }
+    .slow-bar { display:flex; align-items:center; gap:8px; }
+    .slow-bar-track { flex:1; background:rgba(255,255,255,.05); border-radius:3px; height:5px; overflow:hidden; }
+    .slow-bar-fill  { height:100%; border-radius:3px; background:var(--accent); }
+    .p95-badge { font-size:.65rem; font-weight:700; padding:1px 7px; border-radius:100px; background:rgba(248,113,113,.1); color:var(--red); border:1px solid rgba(248,113,113,.2); }
+
+    /* filter bar */
+    .filter-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; align-items:flex-end; }
+    .filter-group { display:flex; flex-direction:column; gap:4px; }
+    .filter-group label { font-size:.65rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--grey); }
+    .filter-group select, .filter-group input {
+      background:var(--bg3); border:1px solid var(--border); border-radius:8px;
+      padding:7px 11px; color:var(--white); font-family:var(--font); font-size:.82rem; outline:none;
+      transition:border-color .3s;
+    }
+    .filter-group select:focus, .filter-group input:focus { border-color:rgba(255,107,53,.35); }
+    .filter-group select option { background:var(--bg3); }
+
+    /* log result rows */
+    .log-result-row { display:flex; align-items:flex-start; gap:10px; padding:8px 14px; border-bottom:1px solid rgba(255,255,255,.025); font-size:.78rem; }
+    .log-result-row:last-child { border-bottom:none; }
+    .lr-ts    { color:rgba(255,255,255,.3); min-width:88px; flex-shrink:0; font-size:.7rem; }
+    .lr-lvl   { min-width:40px; flex-shrink:0; font-weight:800; font-size:.7rem; }
+    .lr-ep    { font-family:'Courier New',monospace; color:var(--cyan); flex-shrink:0; min-width:130px; font-size:.74rem; }
+    .lr-st    { flex-shrink:0; min-width:32px; font-weight:700; font-size:.74rem; }
+    .lr-ms    { color:var(--grey); flex-shrink:0; min-width:50px; font-size:.7rem; text-align:right; }
+    .lr-id    { color:rgba(255,255,255,.2); font-size:.65rem; flex-shrink:0; }
+
+    /* pagination row */
+    .pg-row { display:flex; align-items:center; gap:8px; margin-top:12px; flex-wrap:wrap; }
+    .pg-btn { background:var(--bg3); border:1px solid var(--border); color:var(--grey); padding:6px 14px; border-radius:7px; font-family:var(--font); font-size:.78rem; font-weight:700; cursor:pointer; transition:color .3s,border-color .3s; }
+    .pg-btn.active { border-color:rgba(255,107,53,.4); color:var(--accent); }
+    .pg-btn:hover:not(.active) { color:var(--white); border-color:rgba(255,255,255,.2); }
+    .pg-info { font-size:.75rem; color:var(--grey); margin-left:auto; }
+
+    /* test panel */
+    .test-suite2 { background:var(--bg3); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:16px; }
+    .test-suite2-hdr { padding:11px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+    .test-suite2-hdr h3 { font-size:.82rem; font-weight:700; display:flex; align-items:center; gap:8px; }
+    .test-suite2-name { font-size:.65rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--grey); }
+    .test-row2 { display:flex; align-items:flex-start; gap:10px; padding:7px 18px; border-bottom:1px solid rgba(255,255,255,.025); font-size:.78rem; }
+    .test-row2:last-child { border-bottom:none; }
+    .t2-pass { color:var(--green); flex-shrink:0; }
+    .t2-fail { color:var(--red);   flex-shrink:0; }
+    .t2-name { flex:1; color:rgba(255,255,255,.75); }
+    .t2-ms   { color:var(--grey); font-size:.7rem; }
+    .test-summary2 { padding:10px 18px; border-top:1px solid var(--border); display:flex; gap:16px; font-size:.76rem; }
+
+    /* ══ PART 3 STYLES — Dashboard & Alerts ══ */
+
+    /* alert banner */
+    .alert-banner {
+      border-radius:12px; padding:14px 20px; margin-bottom:20px;
+      display:flex; align-items:center; justify-content:space-between; gap:14px;
+      flex-wrap:wrap; border:1px solid; animation:fadeUp .4s var(--ease);
+    }
+    .alert-banner.active  { background:rgba(248,113,113,.1); border-color:rgba(248,113,113,.35); color:var(--red); }
+    .alert-banner.resolved{ background:rgba(74,222,128,.08); border-color:rgba(74,222,128,.25); color:var(--green); }
+    .alert-banner.conn-lost{background:rgba(251,191,36,.07); border-color:rgba(251,191,36,.22); color:var(--yellow);}
+    .alert-banner-msg { font-size:.85rem; font-weight:600; display:flex; align-items:center; gap:10px; }
+    .alert-ack-btn { font-size:.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; padding:6px 16px; border-radius:100px; border:1px solid currentColor; background:transparent; cursor:pointer; color:inherit; font-family:var(--font); transition:background .25s; flex-shrink:0; }
+    .alert-ack-btn:hover { background:rgba(255,255,255,.08); }
+
+    /* dashboard mock layout */
+    .dash-frame { background:var(--bg3); border:1px solid var(--border); border-radius:20px; overflow:hidden; margin-bottom:60px; }
+    .dash-topbar { padding:14px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:12px; background:rgba(255,255,255,.025); }
+    .dash-topbar-title { font-size:.9rem; font-weight:800; display:flex; align-items:center; gap:8px; }
+    .conn-status { display:flex; align-items:center; gap:6px; font-size:.72rem; font-weight:700; letter-spacing:.08em; }
+    .conn-dot { width:8px; height:8px; border-radius:50%; animation:livePulse 1.5s infinite; }
+    .conn-ok   { color:var(--green);  } .conn-ok   .conn-dot { background:var(--green); }
+    .conn-warn { color:var(--yellow); } .conn-warn .conn-dot { background:var(--yellow); }
+    .conn-err  { color:var(--red);    } .conn-err  .conn-dot { background:var(--red); animation:none; }
+    .dash-body  { padding:20px; }
+
+    /* summary kpi row */
+    .dash-kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+    @media(max-width:680px){ .dash-kpi-row{grid-template-columns:1fr 1fr} }
+    .dash-kpi { background:var(--bg2); border:1px solid var(--border); border-radius:11px; padding:16px 14px; }
+    .dash-kpi-label { font-size:.62rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--grey); margin-bottom:5px; }
+    .dash-kpi-val { font-size:1.5rem; font-weight:900; line-height:1; margin-bottom:3px; }
+    .dash-kpi-sub { font-size:.68rem; color:var(--grey); }
+
+    /* chart row */
+    .dash-chart-row { display:grid; grid-template-columns:2fr 1fr; gap:14px; margin-bottom:16px; }
+    @media(max-width:680px){ .dash-chart-row{grid-template-columns:1fr} }
+    .dash-chart-box { background:var(--bg2); border:1px solid var(--border); border-radius:11px; padding:16px; }
+    .dash-chart-title { font-size:.74rem; font-weight:700; color:var(--grey); margin-bottom:12px; }
+    .dash-chart-row-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin-bottom:16px; }
+    @media(max-width:760px){ .dash-chart-row-3{grid-template-columns:1fr} }
+
+    /* logs table inside dashboard */
+    .dash-filter-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+    .dash-filter-row select, .dash-filter-row input {
+      background:var(--bg3); border:1px solid var(--border); border-radius:7px;
+      padding:6px 10px; color:var(--white); font-family:var(--font); font-size:.78rem; outline:none;
+    }
+    .dash-filter-row select:focus, .dash-filter-row input:focus { border-color:rgba(255,107,53,.35); }
+    .dash-logs-table { width:100%; border-collapse:collapse; font-size:.76rem; }
+    .dash-logs-table th { padding:7px 12px; text-align:left; font-size:.62rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--grey); border-bottom:1px solid var(--border); }
+    .dash-logs-table td { padding:7px 12px; border-bottom:1px solid rgba(255,255,255,.025); }
+    .dash-logs-table tr:last-child td { border-bottom:none; }
+    .level-pill { font-size:.6rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; padding:2px 7px; border-radius:100px; }
+    .lp-info  { background:rgba(74,222,128,.1);  color:var(--green);  border:1px solid rgba(74,222,128,.2); }
+    .lp-warn  { background:rgba(251,191,36,.1);  color:var(--yellow); border:1px solid rgba(251,191,36,.2); }
+    .lp-error { background:rgba(248,113,113,.1); color:var(--red);    border:1px solid rgba(248,113,113,.2); }
+    .load-more-btn { width:100%; background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:8px; padding:9px; font-family:var(--font); font-size:.75rem; font-weight:700; color:var(--grey); cursor:pointer; margin-top:8px; transition:color .25s,background .25s; }
+    .load-more-btn:hover { color:var(--white); background:rgba(255,255,255,.08); }
+
+    /* alert rules */
+    .alert-rules-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-bottom:40px; }
+    .alert-rule-card { background:var(--bg2); border:1px solid var(--border); border-radius:13px; padding:18px; transition:border-color .3s,transform .3s var(--ease); }
+    .alert-rule-card:hover { border-color:rgba(255,107,53,.22); transform:translateY(-3px); }
+    .arc-name { font-size:.82rem; font-weight:800; margin-bottom:6px; }
+    .arc-desc { font-size:.78rem; color:var(--grey); line-height:1.55; margin-bottom:10px; }
+    .arc-threshold { font-family:'Courier New',monospace; font-size:.72rem; color:var(--accent); }
+    .arc-cooldown  { font-size:.68rem; color:var(--grey); margin-top:4px; }
+
+    /* dashboard file structure */
+    .dash-file-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin-bottom:60px; }
+    .dash-file-card { background:var(--bg3); border:1px solid var(--border); border-radius:11px; padding:14px; }
+    .dfc-name { font-family:'Courier New',monospace; font-size:.82rem; font-weight:700; color:var(--accent); margin-bottom:4px; }
+    .dfc-desc { font-size:.72rem; color:var(--grey); line-height:1.5; }
+
+    /* alert log stream */
+    .alert-log-stream { background:var(--bg3); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:40px; }
+    .als-header { padding:11px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; font-size:.8rem; font-weight:700; }
+    .als-body { padding:14px 18px; font-family:'Courier New',monospace; font-size:.76rem; line-height:1.7; max-height:220px; overflow-y:auto; }
+
+    /* ══ PART 4 STYLES — Docker, CI/CD & AWS ══ */
+
+    /* CI pipeline visualiser */
+    .pipeline-row { display:flex; align-items:center; gap:0; flex-wrap:wrap; margin-bottom:32px; }
+    .pl-step { flex:1; min-width:110px; background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:16px 12px; text-align:center; transition:border-color .3s; }
+    .pl-step:hover { border-color:rgba(255,107,53,.22); }
+    .pl-step.passing { border-color:rgba(74,222,128,.3); background:rgba(74,222,128,.04); }
+    .pl-step.failed  { border-color:rgba(248,113,113,.3); background:rgba(248,113,113,.04); }
+    .pl-step.running { border-color:rgba(251,191,36,.3); background:rgba(251,191,36,.04); }
+    .pl-arrow { color:rgba(255,107,53,.35); font-size:1rem; padding:0 6px; flex-shrink:0; }
+    .pl-icon { font-size:1.2rem; margin-bottom:6px; }
+    .pl-name { font-size:.74rem; font-weight:700; color:var(--white); margin-bottom:3px; }
+    .pl-status { font-size:.62rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:2px 8px; border-radius:100px; display:inline-flex; }
+    .ps-pass { background:rgba(74,222,128,.12); color:var(--green); border:1px solid rgba(74,222,128,.2); }
+    .ps-fail { background:rgba(248,113,113,.1);  color:var(--red);   border:1px solid rgba(248,113,113,.2); }
+    .ps-run  { background:rgba(251,191,36,.1);   color:var(--yellow);border:1px solid rgba(251,191,36,.2); animation:blink .9s ease-in-out infinite; }
+    .ps-skip { background:rgba(255,255,255,.06); color:var(--grey);  border:1px solid var(--border); }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+    /* docker service cards */
+    .docker-svc-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin-bottom:40px; }
+    .docker-svc-card { background:var(--bg2); border:1px solid var(--border); border-radius:13px; padding:18px; transition:border-color .3s,transform .3s var(--ease); }
+    .docker-svc-card:hover { border-color:rgba(255,107,53,.22); transform:translateY(-3px); }
+    .dsc-icon { font-size:1.3rem; margin-bottom:8px; }
+    .dsc-name { font-family:'Courier New',monospace; font-size:.82rem; font-weight:700; color:var(--accent); margin-bottom:4px; }
+    .dsc-image { font-size:.68rem; color:var(--grey); margin-bottom:6px; }
+    .dsc-desc { font-size:.76rem; color:var(--grey); line-height:1.55; }
+    .dsc-tags { display:flex; flex-wrap:wrap; gap:5px; margin-top:10px; }
+    .dsc-tag  { font-size:.62rem; font-weight:700; padding:1px 7px; border-radius:100px; background:rgba(255,107,53,.08); color:var(--accent); border:1px solid rgba(255,107,53,.18); }
+
+    /* workflow run simulation */
+    .workflow-run { background:var(--bg3); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:40px; }
+    .wf-run-header { padding:12px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .wf-run-title { font-size:.82rem; font-weight:700; display:flex; align-items:center; gap:8px; }
+    .wf-run-body  { padding:16px 20px; font-family:'Courier New',monospace; font-size:.77rem; line-height:1.75; max-height:300px; overflow-y:auto; color:rgba(255,255,255,.8); }
+    .wf-section { color:rgba(255,255,255,.35); font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; padding:4px 0; }
+    .wf-ok   { color:var(--green); }
+    .wf-err  { color:var(--red); }
+    .wf-warn { color:var(--yellow); }
+    .wf-dim  { color:rgba(255,255,255,.35); }
+    .wf-cmd  { color:var(--cyan); }
+
+    /* AWS steps */
+    .aws-steps { display:flex; flex-direction:column; gap:12px; margin-bottom:60px; }
+    .aws-step { display:flex; gap:16px; background:var(--bg2); border:1px solid var(--border); border-radius:13px; padding:18px 20px; transition:border-color .3s; }
+    .aws-step:hover { border-color:rgba(255,107,53,.18); }
+    .aws-step-num { font-size:1.1rem; font-weight:900; color:rgba(255,107,53,.35); flex-shrink:0; min-width:24px; }
+    .aws-step-title { font-size:.88rem; font-weight:700; margin-bottom:5px; }
+    .aws-step-desc  { font-size:.8rem; color:var(--grey); line-height:1.65; }
+    .aws-step-desc code { font-family:'Courier New',monospace; color:var(--accent); font-size:.78rem; background:rgba(255,107,53,.07); padding:1px 5px; border-radius:3px; }
+    .aws-step-warn  { font-size:.75rem; color:var(--yellow); margin-top:5px; }
+
+    /* design decisions */
+    .design-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; margin-bottom:60px; }
+    .design-card { background:var(--bg2); border:1px solid var(--border); border-radius:13px; padding:18px; }
+    .design-card-q { font-size:.78rem; font-weight:800; color:var(--white); margin-bottom:8px; }
+    .design-card-a { font-size:.78rem; color:var(--grey); line-height:1.6; }
+    .design-card-a code { color:var(--accent); font-family:'Courier New',monospace; font-size:.76rem; }
+
+    /* mermaid-style architecture diagram */
+    .arch-svg-wrap { background:var(--bg3); border:1px solid var(--border); border-radius:16px; padding:28px; margin-bottom:60px; overflow-x:auto; }
+
+    /* status badge mock */
+    .ci-badge { display:inline-flex; align-items:center; gap:6px; font-size:.72rem; font-weight:700; padding:4px 12px; border-radius:100px; }
+    .ci-badge-pass { background:rgba(74,222,128,.12); border:1px solid rgba(74,222,128,.25); color:var(--green); }
+    .ci-badge-fail { background:rgba(248,113,113,.1);  border:1px solid rgba(248,113,113,.25); color:var(--red); }
+
+    /* cost table */
+    .cost-table { width:100%; border-collapse:collapse; font-size:.82rem; margin-bottom:40px; }
+    .cost-table th { padding:10px 16px; text-align:left; font-size:.68rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--grey); border-bottom:1px solid var(--border); }
+    .cost-table td { padding:10px 16px; border-bottom:1px solid rgba(255,255,255,.03); }
+    .cost-table tr:last-child td { border-bottom:none; }
+    .cost-table code { font-family:'Courier New',monospace; color:var(--accent); font-size:.78rem; }
+
+    /* footer */
+    .proj-footer { border-top:1px solid var(--border); padding-top:40px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; }
+    .proj-footer a.back-link { font-size:.82rem; font-weight:700; letter-spacing:.08em; color:var(--accent); text-transform:uppercase; display:inline-flex; align-items:center; gap:6px; transition:gap .3s; }
+    .proj-footer a.back-link:hover { gap:12px; }
+    .proj-footer .nav-pills { display:flex; gap:10px; flex-wrap:wrap; }
+    .proj-footer .nav-pills a { font-size:.76rem; font-weight:600; padding:8px 16px; border-radius:100px; border:1px solid var(--border); color:var(--grey); transition:color .3s,border-color .3s; }
+    .proj-footer .nav-pills a:hover { color:var(--white); border-color:rgba(255,255,255,.2); }
+  </style>
+</head>
+<body>
+
+<div id="cursor-glow" aria-hidden="true"></div>
+<div class="cursor-dot"  aria-hidden="true"></div>
+<div class="cursor-ring" aria-hidden="true"></div>
+<div id="toast3"></div>
+<a href="index.html" class="back-btn">← Back to Portfolio</a>
+
+<!-- ───── HERO ───── -->
+<section class="proj-hero">
+  <div class="proj-hero-grid"></div>
+  <div class="proj-hero-content">
+    <span class="proj-tag">Cloud &amp; DevOps · Node.js · Python</span>
+    <h1>Log Monitoring<br/>Tool with CI/CD</h1>
+    <p>End-to-end observability pipeline — a sample Express app that emits structured JSON logs, a FastAPI collector that stores them in SQLite, a Chart.js dashboard for real-time visualisation, and automated deployment via GitHub Actions and AWS EC2.</p>
+    <div class="pill-row">
+      <span class="pill">Node.js + Express</span>
+      <span class="pill">Winston</span>
+      <span class="pill">FastAPI</span>
+      <span class="pill">SQLite</span>
+      <span class="pill">Chart.js</span>
+      <span class="pill">Docker</span>
+      <span class="pill">GitHub Actions</span>
+      <span class="pill">AWS EC2</span>
+    </div>
+  </div>
+</section>
+
+<!-- ───── BODY ───── -->
+<div class="proj-body">
+
+  <!-- Stats -->
+  <div class="stats-strip">
+    <div class="stat-box"><span class="num">4</span><span class="lbl">Docker Services</span></div>
+    <div class="stat-box"><span class="num">2</span><span class="lbl">GH Actions Workflows</span></div>
+    <div class="stat-box"><span class="num">EC2</span><span class="lbl">AWS Deploy</span></div>
+    <div class="stat-box"><span class="num">SSH</span><span class="lbl">CD Pipeline</span></div>
+    <div class="stat-box"><span class="num">Jest+pytest</span><span class="lbl">CI Tests</span></div>
+  </div>
+
+  <!-- PART 1 DIVIDER -->
+  <div class="part-divider">
+    <div class="part-divider-num">01</div>
+    <div>
+      <div class="part-divider-title">Sample App &amp; Log Generation</div>
+      <div class="part-divider-desc">Express server · Winston structured JSON · log rotation · traffic generator · Jest + Supertest</div>
+    </div>
+  </div>
+
+  <!-- project structure -->
+  <p class="sec-label">— Project Structure</p>
+  <h2 class="sec-title">Folder Layout</h2>
+
+  <div class="file-tree">
+<span class="ft-dir">log-monitor/</span>
+├── <span class="ft-dir">sample-app/</span>
+│   ├── <span class="ft-new">src/</span>
+│   │   ├── <span class="ft-new">app.js</span>            <span class="ft-note">← Express app, middleware, routes</span>
+│   │   ├── <span class="ft-new">logger.js</span>         <span class="ft-note">← Winston setup + daily-rotate-file</span>
+│   │   └── <span class="ft-new">server.js</span>         <span class="ft-note">← startup, graceful shutdown</span>
+│   ├── <span class="ft-dir">logs/</span>
+│   │   └── <span class="ft-note">app.log, app-2024-11-21.log …  (auto-generated)</span>
+│   ├── <span class="ft-new">tests/</span>
+│   │   ├── <span class="ft-new">endpoints.test.js</span>  <span class="ft-note">← Supertest: HTTP status + body</span>
+│   │   └── <span class="ft-new">log-format.test.js</span> <span class="ft-note">← log line structure checks</span>
+│   ├── <span class="ft-new">.env.example</span>
+│   └── <span class="ft-new">package.json</span>
+├── <span class="ft-dir">collector/</span>             <span class="ft-note">← Part 2 (FastAPI + SQLite)</span>
+├── <span class="ft-dir">dashboard/</span>             <span class="ft-note">← Part 3 (Chart.js)</span>
+├── <span class="ft-dir">scripts/</span>
+│   └── <span class="ft-new">generate_traffic.js</span>   <span class="ft-note">← configurable traffic + burst mode</span>
+└── <span class="ft-new">README.md</span>
+  </div>
+
+  <!-- ENDPOINTS -->
+  <p class="sec-label">— API Endpoints</p>
+  <h2 class="sec-title">Five Endpoints, Three Log Levels</h2>
+
+  <div class="endpoint-grid">
+    <div class="ep-card">
+      <span class="ep-method ep-get">GET</span>
+      <div class="ep-path">/api/users</div>
+      <div class="ep-desc">Returns a fake user list. Always fast (&lt;20 ms).</div>
+      <div class="ep-behavior">Always 200 OK</div>
+      <span class="ep-log-level level-info">info</span>
+    </div>
+    <div class="ep-card">
+      <span class="ep-method ep-get">GET</span>
+      <div class="ep-path">/api/orders</div>
+      <div class="ep-desc">Introduces a random delay of 200–1500 ms to simulate a slow database query.</div>
+      <div class="ep-behavior">Random delay, 200 OK</div>
+      <span class="ep-log-level level-info">info</span>
+    </div>
+    <div class="ep-card">
+      <span class="ep-method ep-post">POST</span>
+      <div class="ep-path">/api/payment</div>
+      <div class="ep-desc">Fails with HTTP 500 ~20% of the time. Remaining 80% return success.</div>
+      <div class="ep-behavior">20% → 500 error</div>
+      <span class="ep-log-level level-error">error</span>
+    </div>
+    <div class="ep-card">
+      <span class="ep-method ep-get">GET</span>
+      <div class="ep-path">/api/search</div>
+      <div class="ep-desc">Returns 400 Bad Request when the <code style="color:var(--accent);font-size:.75rem">q</code> query param is missing, 200 otherwise.</div>
+      <div class="ep-behavior">Missing q → 400</div>
+      <span class="ep-log-level level-warn">warn</span>
+    </div>
+    <div class="ep-card">
+      <span class="ep-method ep-get">GET</span>
+      <div class="ep-path">/api/health</div>
+      <div class="ep-desc">Health check endpoint. Always returns <code style="color:var(--green);font-size:.75rem">{ status: "ok" }</code> in &lt;5 ms.</div>
+      <div class="ep-behavior">Always 200, never logged at warn/error</div>
+      <span class="ep-log-level level-info">info</span>
+    </div>
+  </div>
+
+  <!-- WINSTON / LOGGER CODE -->
+  <p class="sec-label">— Log Setup</p>
+  <h2 class="sec-title">Winston Logger</h2>
+
+  <div class="code-block">
+    <div class="code-block-header"><span class="lang">JS</span><span>sample-app/src/logger.js</span></div>
+    <pre><span class="kw">const</span> winston = <span class="fn">require</span>(<span class="st">'winston'</span>);
+<span class="kw">const</span> DailyRotateFile = <span class="fn">require</span>(<span class="st">'winston-daily-rotate-file'</span>);
+<span class="kw">const</span> path = <span class="fn">require</span>(<span class="st">'path'</span>);
+
+<span class="kw">const</span> LOG_DIR = process.env.LOG_DIR || <span class="st">'./logs'</span>;
+<span class="kw">const</span> LOG_LEVEL = process.env.LOG_LEVEL || <span class="st">'info'</span>;
+
+<span class="cm">// Structured JSON format — every field is explicit, no string interpolation</span>
+<span class="kw">const</span> jsonFormat = winston.format.<span class="fn">combine</span>(
+  winston.format.<span class="fn">timestamp</span>({ format: <span class="st">'YYYY-MM-DDTHH:mm:ss.SSSZ'</span> }),  <span class="cm">// ISO 8601</span>
+  winston.format.<span class="fn">errors</span>({ stack: <span class="nb">true</span> }),
+  winston.format.<span class="fn">json</span>()
+);
+
+<span class="cm">// Rotate: new file per day, max 5 MB, keep last 3 files</span>
+<span class="kw">const</span> fileTransport = <span class="kw">new</span> <span class="fn">DailyRotateFile</span>({
+  dirname:        LOG_DIR,
+  filename:       <span class="st">'app-%DATE%.log'</span>,
+  datePattern:    <span class="st">'YYYY-MM-DD'</span>,
+  maxSize:        <span class="st">'5m'</span>,    <span class="cm">// rotate at 5 MB</span>
+  maxFiles:       <span class="st">'3'</span>,     <span class="cm">// keep only 3 files</span>
+  format:         jsonFormat,
+  zippedArchive:  <span class="nb">false</span>,
+});
+
+<span class="kw">const</span> logger = winston.<span class="fn">createLogger</span>({
+  level:      LOG_LEVEL,
+  format:     jsonFormat,
+  transports: [
+    fileTransport,
+    <span class="kw">new</span> winston.transports.<span class="fn">Console</span>({
+      format: winston.format.<span class="fn">combine</span>(
+        winston.format.<span class="fn">colorize</span>(),
+        winston.format.<span class="fn">simple</span>()
+      ),
+    }),
+  ],
+});
+
+module.exports = logger;</pre>
+  </div>
+
+  <!-- MIDDLEWARE CODE -->
+  <div class="code-block">
+    <div class="code-block-header"><span class="lang">JS</span><span>sample-app/src/app.js — request logging middleware</span></div>
+    <pre><span class="kw">const</span> { v4: uuidv4 } = <span class="fn">require</span>(<span class="st">'uuid'</span>);
+<span class="kw">const</span> logger = <span class="fn">require</span>(<span class="st">'./logger'</span>);
+
+<span class="cm">// Request logging middleware: measures response time, logs one line per request</span>
+app.<span class="fn">use</span>((req, res, next) => {
+  <span class="kw">const</span> startTime  = Date.<span class="fn">now</span>();
+  req.requestId    = <span class="fn">uuidv4</span>();  <span class="cm">// unique ID ties request to log line</span>
+
+  res.<span class="fn">on</span>(<span class="st">'finish'</span>, () => {
+    <span class="kw">const</span> responseTime = Date.<span class="fn">now</span>() - startTime;
+    <span class="kw">const</span> status       = res.statusCode;
+
+    <span class="cm">// Level choice: info=2xx, warn=4xx, error=5xx</span>
+    <span class="kw">const</span> level =
+      status >= <span class="nb">500</span> ? <span class="st">'error'</span> :
+      status >= <span class="nb">400</span> ? <span class="st">'warn'</span>  : <span class="st">'info'</span>;
+
+    logger[level](<span class="st">'HTTP request'</span>, {
+      timestamp:       <span class="kw">new</span> <span class="fn">Date</span>().<span class="fn">toISOString</span>(),
+      endpoint:        req.path,
+      method:          req.method,
+      status_code:     status,
+      response_time_ms: responseTime,
+      request_id:      req.requestId,
+    });
+  });
+  <span class="fn">next</span>();
+});
+
+<span class="cm">// Global error handler: captures stack trace</span>
+app.<span class="fn">use</span>((err, req, res, next) => {
+  logger.<span class="fn">error</span>(<span class="st">'Unhandled error'</span>, {
+    message:    err.message,
+    stack:      err.stack,
+    request_id: req.requestId,
+    endpoint:   req.path,
+  });
+  res.<span class="fn">status</span>(<span class="nb">500</span>).<span class="fn">json</span>({ error: <span class="st">'Internal server error'</span> });
+});</pre>
+  </div>
+
+  <!-- GRACEFUL SHUTDOWN CODE -->
+  <div class="code-block" style="margin-bottom:80px">
+    <div class="code-block-header"><span class="lang">JS</span><span>sample-app/src/server.js — graceful shutdown</span></div>
+    <pre><span class="kw">const</span> server = app.<span class="fn">listen</span>(PORT, () => {
+  logger.<span class="fn">info</span>(<span class="st">`Server started on port ${PORT}`</span>);
+});
+
+<span class="cm">// Graceful shutdown: close server, flush logs, then exit</span>
+<span class="kw">function</span> <span class="fn">shutdown</span>(signal) {
+  logger.<span class="fn">info</span>(<span class="st">`${signal} received — shutting down gracefully`</span>);
+  server.<span class="fn">close</span>(() => {
+    logger.<span class="fn">info</span>(<span class="st">'HTTP server closed'</span>);
+    process.<span class="fn">exit</span>(<span class="nb">0</span>);
+  });
+  <span class="cm">// Force exit after 10s if connections hang</span>
+  setTimeout(() => process.<span class="fn">exit</span>(<span class="nb">1</span>), <span class="nb">10_000</span>);
+}
+process.<span class="fn">on</span>(<span class="st">'SIGINT'</span>,  () => <span class="fn">shutdown</span>(<span class="st">'SIGINT'</span>));
+process.<span class="fn">on</span>(<span class="st">'SIGTERM'</span>, () => <span class="fn">shutdown</span>(<span class="st">'SIGTERM'</span>));</pre>
+  </div>
+
+  <!-- LOG SCHEMA -->
+  <p class="sec-label">— Log Schema</p>
+  <h2 class="sec-title">Structured JSON Log Fields</h2>
+
+  <div class="table-wrap" style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:60px">
+    <table class="field-table">
+      <thead><tr><th>Field</th><th>Type</th><th>Example</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code>timestamp</code></td><td>ISO 8601</td><td><code>2024-11-21T10:14:02.311Z</code></td><td><span class="req">Required</span> Winston adds this</td></tr>
+        <tr><td><code>level</code></td><td>string</td><td><code>info</code> / <code>warn</code> / <code>error</code></td><td><span class="req">Required</span> Derived from status code</td></tr>
+        <tr><td><code>message</code></td><td>string</td><td><code>HTTP request</code></td><td><span class="req">Required</span> Static string</td></tr>
+        <tr><td><code>endpoint</code></td><td>string</td><td><code>/api/payment</code></td><td>From <code>req.path</code></td></tr>
+        <tr><td><code>method</code></td><td>string</td><td><code>POST</code></td><td>From <code>req.method</code></td></tr>
+        <tr><td><code>status_code</code></td><td>integer</td><td><code>500</code></td><td>From <code>res.statusCode</code></td></tr>
+        <tr><td><code>response_time_ms</code></td><td>integer</td><td><code>847</code></td><td>Measured with <code>Date.now()</code></td></tr>
+        <tr><td><code>request_id</code></td><td>UUIDv4</td><td><code>a4b8c2d1-…</code></td><td>Generated per-request with <code>uuid</code></td></tr>
+        <tr><td><code>stack</code></td><td>string</td><td><code>Error: Payment failed\n  at…</code></td><td>Error entries only — from Winston <code>errors()</code> format</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- LIVE LOG STREAM -->
+  <p class="sec-label">— Live Demo</p>
+  <h2 class="sec-title">Log Stream Simulator</h2>
+  <p style="font-size:.85rem;color:var(--grey);line-height:1.7;margin-bottom:24px">
+    Simulates the live <code style="color:var(--accent);font-size:.82rem">app.log</code> output. Each line is a valid JSON log entry. Burst mode fires many 5xx errors in a short window.
+  </p>
+
+  <div class="log-stream">
+    <div class="log-stream-header">
+      <div class="log-stream-title">
+        <div class="live-dot" id="live-dot"></div>
+        sample-app/logs/app.log
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="demo-btn btn-sm" id="start-stream-btn">▶ Start</button>
+        <button class="demo-btn btn-ghost btn-sm" id="burst-btn">💥 Burst Mode</button>
+        <button class="demo-btn btn-ghost btn-sm" id="stop-stream-btn">■ Stop</button>
+        <button class="demo-btn btn-ghost btn-sm" id="clear-log-btn">Clear</button>
+      </div>
+    </div>
+    <div class="log-stream-body" id="log-body"></div>
+  </div>
+
+  <!-- TRAFFIC GENERATOR -->
+  <p class="sec-label">— Traffic Generator</p>
+  <h2 class="sec-title">scripts/generate_traffic.js</h2>
+
+  <div class="info-box">
+    Run: <code>node scripts/generate_traffic.js --rps 5 --duration 60</code> &nbsp;·&nbsp;
+    Burst: <code>node scripts/generate_traffic.js --burst --burst-count 50</code>
+  </div>
+
+  <div class="code-block">
+    <div class="code-block-header"><span class="lang">JS</span><span>scripts/generate_traffic.js</span></div>
+    <pre><span class="kw">const</span> http = <span class="fn">require</span>(<span class="st">'http'</span>);
+<span class="kw">const</span> args = <span class="fn">require</span>(<span class="st">'minimist'</span>)(process.argv.<span class="fn">slice</span>(<span class="nb">2</span>));
+
+<span class="kw">const</span> RPS        = args.rps      || <span class="nb">2</span>;
+<span class="kw">const</span> DURATION   = args.duration || <span class="nb">30</span>;   <span class="cm">// seconds</span>
+<span class="kw">const</span> BURST_MODE = args.burst    || <span class="nb">false</span>;
+<span class="kw">const</span> BURST_COUNT= args[<span class="st">'burst-count'</span>] || <span class="nb">50</span>;
+<span class="kw">const</span> BASE_URL   = args.url     || <span class="st">'http://localhost:3000'</span>;
+
+<span class="kw">const</span> ENDPOINTS = [
+  { path: <span class="st">'/api/users'</span>,   method: <span class="st">'GET'</span>  },
+  { path: <span class="st">'/api/orders'</span>,  method: <span class="st">'GET'</span>  },
+  { path: <span class="st">'/api/payment'</span>, method: <span class="st">'POST'</span> },
+  { path: <span class="st">'/api/search?q=shoes'</span>, method: <span class="st">'GET'</span> },
+  { path: <span class="st">'/api/search'</span>,  method: <span class="st">'GET'</span>  },  <span class="cm">// missing q → 400</span>
+  { path: <span class="st">'/api/health'</span>,  method: <span class="st">'GET'</span>  },
+];
+
+<span class="kw">let</span> total = <span class="nb">0</span>, success = <span class="nb">0</span>, failure = <span class="nb">0</span>;
+
+<span class="kw">function</span> <span class="fn">randomEndpoint</span>() {
+  <span class="kw">return</span> ENDPOINTS[Math.<span class="fn">floor</span>(Math.<span class="fn">random</span>() * ENDPOINTS.length)];
+}
+
+<span class="kw">async function</span> <span class="fn">sendRequest</span>({ path, method }) {
+  <span class="kw">return new</span> <span class="fn">Promise</span>(resolve => {
+    <span class="kw">const</span> req = http.<span class="fn">request</span>({ hostname: <span class="st">'localhost'</span>, port: <span class="nb">3000</span>, path, method },
+      res => {
+        total++; res.statusCode < <span class="nb">400</span> ? success++ : failure++;
+        resolve(res.statusCode);
+      });
+    req.<span class="fn">on</span>(<span class="st">'error'</span>, () => { total++; failure++; resolve(<span class="nb">0</span>); });
+    req.<span class="fn">end</span>();
+  });
+}
+
+<span class="kw">if</span> (BURST_MODE) {
+  <span class="cm">// Burst: fire BURST_COUNT POST /api/payment requests in rapid succession</span>
+  <span class="cm">// Used to test alert thresholds in the collector later</span>
+  <span class="fn">Promise</span>.<span class="fn">all</span>(
+    Array.<span class="fn">from</span>({ length: BURST_COUNT }, () =>
+      <span class="fn">sendRequest</span>({ path: <span class="st">'/api/payment'</span>, method: <span class="st">'POST'</span> })
+    )
+  ).<span class="fn">then</span>(() =>
+    console.<span class="fn">log</span>(<span class="st">`Burst done | total=${total} success=${success} failure=${failure}`</span>)
+  );
+} <span class="kw">else</span> {
+  <span class="kw">const</span> interval = <span class="nb">1000</span> / RPS;
+  <span class="kw">const</span> timer = setInterval(<span class="kw">async</span> () => {
+    <span class="kw">await</span> <span class="fn">sendRequest</span>(<span class="fn">randomEndpoint</span>());
+  }, interval);
+
+  setTimeout(() => {
+    <span class="fn">clearInterval</span>(timer);
+    console.<span class="fn">log</span>(<span class="st">`\nSummary`</span>);
+    console.<span class="fn">log</span>(<span class="st">`  Total requests : ${total}`</span>);
+    console.<span class="fn">log</span>(<span class="st">`  Success        : ${success}`</span>);
+    console.<span class="fn">log</span>(<span class="st">`  Failure        : ${failure}`</span>);
+  }, DURATION * <span class="nb">1000</span>);
+}</pre>
+  </div>
+
+  <!-- TRAFFIC SIMULATOR UI -->
+  <p class="sec-label">— Interactive Demo</p>
+  <h2 class="sec-title">Traffic Generator Simulator</h2>
+
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:28px;margin-bottom:60px">
+    <div class="traffic-ctrl">
+      <div class="tc-group">
+        <label>Requests / sec: <span id="rps-val">3</span></label>
+        <input type="range" id="rps-slider" min="1" max="10" value="3" style="width:140px"/>
+      </div>
+      <div class="tc-group">
+        <label>Duration (sec): <span id="dur-val">30</span></label>
+        <input type="range" id="dur-slider" min="5" max="60" value="30" step="5" style="width:140px"/>
+      </div>
+      <button class="demo-btn btn-sm" id="run-traffic-btn">▶ Run Traffic</button>
+      <button class="demo-btn btn-sm btn-burst" id="run-burst-btn">💥 Burst Mode</button>
+      <button class="demo-btn btn-ghost btn-sm" id="reset-traffic-btn">↺ Reset</button>
+    </div>
+
+    <div class="prog-wrap" id="prog-wrap" style="display:none">
+      <div class="prog-label"><span id="prog-stage">Sending requests…</span><span id="prog-pct">0%</span></div>
+      <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+    </div>
+
+    <div class="summary-grid" id="summary-grid">
+      <div class="sum-card"><div class="sum-num" id="s-total" style="color:var(--white)">—</div><div class="sum-lbl">Total Requests</div></div>
+      <div class="sum-card"><div class="sum-num" id="s-success" style="color:var(--green)">—</div><div class="sum-lbl">Success</div></div>
+      <div class="sum-card"><div class="sum-num" id="s-fail" style="color:var(--red)">—</div><div class="sum-lbl">Failure</div></div>
+      <div class="sum-card"><div class="sum-num" id="s-rps" style="color:var(--accent)">—</div><div class="sum-lbl">Actual RPS</div></div>
+    </div>
+
+    <div id="endpoint-breakdown" style="display:none;margin-top:16px">
+      <div style="font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--grey);margin-bottom:10px">Endpoint Breakdown</div>
+      <div id="breakdown-rows"></div>
+    </div>
+  </div>
+
+  <!-- TESTS -->
+  <p class="sec-label">— Testing</p>
+  <h2 class="sec-title">Jest + Supertest</h2>
+  <p style="font-size:.85rem;color:var(--grey);margin-bottom:24px">Run: <code style="color:var(--accent);font-size:.82rem">cd sample-app && npm test</code></p>
+
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+    <button class="demo-btn" id="run-tests-btn">▶ Run Tests</button>
+    <span id="test-info" style="font-size:.78rem;color:var(--grey);align-self:center"></span>
+  </div>
+
+  <div class="test-suite" id="ts-endpoints">
+    <div class="test-suite-hdr">
+      <h3><span class="t-pass">●</span> tests/endpoints.test.js</h3>
+      <span class="test-suite-name">Integration · HTTP endpoints</span>
+    </div>
+    <div id="to-endpoints"></div>
+    <div class="test-summary" id="tsum-endpoints"></div>
+  </div>
+
+  <div class="test-suite" id="ts-logfmt" style="margin-bottom:80px">
+    <div class="test-suite-hdr">
+      <h3><span class="t-pass">●</span> tests/log-format.test.js</h3>
+      <span class="test-suite-name">Unit · log line structure</span>
+    </div>
+    <div id="to-logfmt"></div>
+    <div class="test-summary" id="tsum-logfmt"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       PART 2 — LOG COLLECTOR API (FastAPI + SQLite)
+  ═══════════════════════════════════════════════ -->
+  <div class="part-divider" style="margin-top:100px">
+    <div class="part-divider-num">02</div>
+    <div>
+      <div class="part-divider-title">Log Collector API</div>
+      <div class="part-divider-desc">FastAPI · SQLAlchemy · SQLite · tail-f watcher · parser · dedup · stats endpoints · pytest</div>
+    </div>
+  </div>
+
+  <!-- updated file tree -->
+  <p class="sec-label">— Structure</p>
+  <h2 class="sec-title">Collector Service Files</h2>
+
+  <div class="file-tree" style="margin-bottom:60px">
+<span class="ft-dir">collector/</span>
+├── <span class="ft-dir">app/</span>
+│   ├── <span class="ft-new">main.py</span>          <span class="ft-note">← FastAPI app, startup/shutdown, CORS</span>
+│   ├── <span class="ft-new">config.py</span>        <span class="ft-note">← env vars via pydantic-settings</span>
+│   ├── <span class="ft-new">database.py</span>      <span class="ft-note">← SQLAlchemy engine, session, Base</span>
+│   ├── <span class="ft-new">models.py</span>        <span class="ft-note">← Log, BadLine, Alert ORM models + indexes</span>
+│   ├── <span class="ft-new">schemas.py</span>       <span class="ft-note">← Pydantic request/response schemas</span>
+│   ├── <span class="ft-new">parser.py</span>        <span class="ft-note">← parse one JSON line → LogCreate or BadLine</span>
+│   ├── <span class="ft-new">watcher.py</span>       <span class="ft-note">← tail-f background task, batch insert 100</span>
+│   └── <span class="ft-dir">routes/</span>
+│       └── <span class="ft-new">logs.py</span>      <span class="ft-note">← /api/logs, /api/stats/*, /api/alerts, /health</span>
+├── <span class="ft-dir">tests/</span>
+│   ├── <span class="ft-new">test_parser.py</span>   <span class="ft-note">← valid line, broken JSON, missing field</span>
+│   ├── <span class="ft-new">test_dedup.py</span>    <span class="ft-note">← same request_id+timestamp skipped</span>
+│   └── <span class="ft-new">test_api.py</span>      <span class="ft-note">← filters, stats, pagination (temp DB)</span>
+├── <span class="ft-new">.env.example</span>
+└── <span class="ft-new">requirements.txt</span>
+  </div>
+
+  <!-- WATCHER FLOW -->
+  <p class="sec-label">— Architecture</p>
+  <h2 class="sec-title">tail-f Watcher Pipeline</h2>
+
+  <div class="watcher-flow">
+    <div class="wf-step"><div class="wf-icon">📄</div><div class="wf-name">app.log</div><div class="wf-desc">Winston writes new JSON lines</div></div>
+    <span class="wf-arrow">→</span>
+    <div class="wf-step"><div class="wf-icon">👁️</div><div class="wf-name">watcher.py</div><div class="wf-desc">Tracks file position, detects rotation</div></div>
+    <span class="wf-arrow">→</span>
+    <div class="wf-step"><div class="wf-icon">🔍</div><div class="wf-name">parser.py</div><div class="wf-desc">JSON.loads, field validation</div></div>
+    <span class="wf-arrow">→</span>
+    <div class="wf-step"><div class="wf-icon">🔁</div><div class="wf-name">Dedup check</div><div class="wf-desc">Skip if request_id+timestamp exists</div></div>
+    <span class="wf-arrow">→</span>
+    <div class="wf-step"><div class="wf-icon">📦</div><div class="wf-name">Batch insert</div><div class="wf-desc">Up to 100 rows per commit</div></div>
+    <span class="wf-arrow">→</span>
+    <div class="wf-step"><div class="wf-icon">🗄️</div><div class="wf-name">SQLite</div><div class="wf-desc">logs / bad_lines / alerts</div></div>
+  </div>
+
+  <!-- KEY CODE SNIPPETS -->
+  <div class="code-block">
+    <div class="code-block-header"><span class="lang">Python</span><span>collector/app/watcher.py — tail-f with rotation detection</span></div>
+    <pre><span class="kw">import</span> asyncio, os, logging
+<span class="kw">from</span> .parser   <span class="kw">import</span> parse_line
+<span class="kw">from</span> .database <span class="kw">import</span> SessionLocal
+<span class="kw">from</span> .models   <span class="kw">import</span> Log, BadLine
+
+BATCH_SIZE = <span class="nb">100</span>  <span class="cm"># commit every 100 lines for efficiency</span>
+logger = logging.<span class="fn">getLogger</span>(__name__)
+
+
+<span class="kw">async def</span> <span class="fn">watch_log_file</span>(path: str, poll_interval: float = <span class="nb">0.5</span>):
+    <span class="st">"""Continuously read new lines from path like `tail -f`.
+
+    Handles two edge cases:
+    - Rotation: a new file appears at the same path (inode changes) → reopen from start
+    - Truncation: file size shrinks (e.g. logrotate copytruncate) → seek to 0
+    """</span>
+    pos = <span class="nb">0</span>
+    current_inode = <span class="nb">None</span>
+
+    <span class="kw">while True</span>:
+        <span class="kw">try</span>:
+            stat = os.<span class="fn">stat</span>(path)
+            <span class="cm"># Rotation: inode changed → new file, restart from byte 0</span>
+            <span class="kw">if</span> current_inode <span class="kw">is not None and</span> stat.st_ino != current_inode:
+                logger.<span class="fn">info</span>(<span class="st">"Log rotation detected — reopening file"</span>)
+                pos = <span class="nb">0</span>
+            <span class="cm"># Truncation: file is smaller than our position → seek to 0</span>
+            <span class="kw">if</span> stat.st_size < pos:
+                logger.<span class="fn">info</span>(<span class="st">"Log truncation detected — rewinding to start"</span>)
+                pos = <span class="nb">0</span>
+            current_inode = stat.st_ino
+
+            <span class="kw">with</span> <span class="fn">open</span>(path, <span class="st">'r'</span>, encoding=<span class="st">'utf-8'</span>) <span class="kw">as</span> f:
+                f.<span class="fn">seek</span>(pos)
+                batch = []
+                <span class="kw">for</span> raw_line <span class="kw">in</span> f:
+                    result = <span class="fn">parse_line</span>(raw_line)
+                    batch.<span class="fn">append</span>((result, raw_line))
+                    <span class="kw">if</span> <span class="fn">len</span>(batch) >= BATCH_SIZE:
+                        <span class="kw">await</span> <span class="fn">flush_batch</span>(batch)
+                        batch = []
+                <span class="kw">if</span> batch:
+                    <span class="kw">await</span> <span class="fn">flush_batch</span>(batch)
+                pos = f.<span class="fn">tell</span>()
+
+        <span class="kw">except</span> FileNotFoundError:
+            logger.<span class="fn">warning</span>(<span class="st">f"Log file not found: {path} — waiting…"</span>)
+        <span class="kw">await</span> asyncio.<span class="fn">sleep</span>(poll_interval)
+
+
+<span class="kw">async def</span> <span class="fn">flush_batch</span>(batch):
+    db = <span class="fn">SessionLocal</span>()
+    <span class="kw">try</span>:
+        <span class="kw">for</span> result, raw_line <span class="kw">in</span> batch:
+            <span class="kw">if</span> result[<span class="st">'ok'</span>]:
+                entry = result[<span class="st">'data'</span>]
+                <span class="cm"># Dedup: skip if same request_id+timestamp already stored</span>
+                exists = db.<span class="fn">query</span>(Log).<span class="fn">filter_by</span>(
+                    request_id=entry.request_id,
+                    timestamp=entry.timestamp
+                ).<span class="fn">first</span>()
+                <span class="kw">if not</span> exists:
+                    db.<span class="fn">add</span>(<span class="fn">Log</span>(**entry.<span class="fn">model_dump</span>(), raw_line=raw_line.<span class="fn">strip</span>()))
+            <span class="kw">else</span>:
+                db.<span class="fn">add</span>(<span class="fn">BadLine</span>(raw=raw_line.<span class="fn">strip</span>(), reason=result[<span class="st">'reason'</span>]))
+                logger.<span class="fn">warning</span>(<span class="st">f"Bad log line: {result['reason']}"</span>)
+        db.<span class="fn">commit</span>()
+    <span class="kw">finally</span>:
+        db.<span class="fn">close</span>()</pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-block-header"><span class="lang">Python</span><span>collector/app/parser.py — safe JSON parser</span></div>
+    <pre><span class="kw">import</span> json
+<span class="kw">from</span> datetime <span class="kw">import</span> datetime
+<span class="kw">from</span> .schemas <span class="kw">import</span> LogCreate
+
+REQUIRED_FIELDS = {
+    <span class="st">'timestamp'</span>, <span class="st">'level'</span>, <span class="st">'message'</span>,
+    <span class="st">'endpoint'</span>, <span class="st">'method'</span>, <span class="st">'status_code'</span>,
+    <span class="st">'response_time_ms'</span>, <span class="st">'request_id'</span>,
+}
+VALID_LEVELS = {<span class="st">'info'</span>, <span class="st">'warn'</span>, <span class="st">'error'</span>}
+
+
+<span class="kw">def</span> <span class="fn">parse_line</span>(raw: str) -> dict:
+    <span class="st">"""Parse one JSON log line. Never raises — returns ok/data or ok=False/reason.
+
+    Returns:
+        {'ok': True,  'data': LogCreate(...)}
+        {'ok': False, 'reason': 'Missing fields: endpoint, method'}
+    """</span>
+    raw = raw.<span class="fn">strip</span>()
+    <span class="kw">if not</span> raw:
+        <span class="kw">return</span> {<span class="st">'ok'</span>: <span class="nb">False</span>, <span class="st">'reason'</span>: <span class="st">'empty line'</span>}
+    <span class="kw">try</span>:
+        data = json.<span class="fn">loads</span>(raw)
+    <span class="kw">except</span> json.JSONDecodeError <span class="kw">as</span> e:
+        <span class="kw">return</span> {<span class="st">'ok'</span>: <span class="nb">False</span>, <span class="st">'reason'</span>: <span class="st">f'Invalid JSON: {e}'</span>}
+
+    missing = REQUIRED_FIELDS - <span class="fn">set</span>(data.<span class="fn">keys</span>())
+    <span class="kw">if</span> missing:
+        <span class="kw">return</span> {<span class="st">'ok'</span>: <span class="nb">False</span>, <span class="st">'reason'</span>: <span class="st">f'Missing fields: {", ".join(missing)}'</span>}
+
+    <span class="kw">if</span> data[<span class="st">'level'</span>] <span class="kw">not in</span> VALID_LEVELS:
+        <span class="kw">return</span> {<span class="st">'ok'</span>: <span class="nb">False</span>, <span class="st">'reason'</span>: <span class="st">f'Unknown level: {data["level"]}'</span>}
+
+    <span class="kw">try</span>:
+        <span class="kw">return</span> {<span class="st">'ok'</span>: <span class="nb">True</span>, <span class="st">'data'</span>: <span class="fn">LogCreate</span>(**data)}
+    <span class="kw">except</span> Exception <span class="kw">as</span> e:
+        <span class="kw">return</span> {<span class="st">'ok'</span>: <span class="nb">False</span>, <span class="st">'reason'</span>: <span class="st">f'Validation error: {e}'</span>}</pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-block-header"><span class="lang">Python</span><span>collector/app/routes/logs.py — stats endpoints (excerpt)</span></div>
+    <pre><span class="kw">from</span> fastapi <span class="kw">import</span> APIRouter, Depends, Query
+<span class="kw">from</span> sqlalchemy.orm <span class="kw">import</span> Session
+<span class="kw">from</span> sqlalchemy <span class="kw">import</span> func
+<span class="kw">from</span> ..database <span class="kw">import</span> get_db
+<span class="kw">from</span> ..models   <span class="kw">import</span> Log
+<span class="kw">from</span> ..schemas  <span class="kw">import</span> LogQuery, LogsResponse, StatsSummary
+
+router = <span class="fn">APIRouter</span>(prefix=<span class="st">"/api"</span>)
+
+
+<span class="nb">@router.get</span>(<span class="st">"/logs"</span>, response_model=LogsResponse)
+<span class="kw">def</span> <span class="fn">get_logs</span>(
+    level:       str | <span class="nb">None</span> = <span class="nb">None</span>,
+    endpoint:    str | <span class="nb">None</span> = <span class="nb">None</span>,
+    status_code: int | <span class="nb">None</span> = <span class="nb">None</span>,
+    start_time:  str | <span class="nb">None</span> = <span class="nb">None</span>,
+    end_time:    str | <span class="nb">None</span> = <span class="nb">None</span>,
+    search:      str | <span class="nb">None</span> = <span class="nb">None</span>,  <span class="cm"># searches in message field</span>
+    page:        int         = <span class="fn">Query</span>(<span class="nb">1</span>,   ge=<span class="nb">1</span>),
+    page_size:   int         = <span class="fn">Query</span>(<span class="nb">50</span>,  ge=<span class="nb">1</span>, le=<span class="nb">500</span>),
+    db: Session              = <span class="fn">Depends</span>(get_db),
+):
+    q = db.<span class="fn">query</span>(Log)
+    <span class="kw">if</span> level:       q = q.<span class="fn">filter</span>(Log.level == level)
+    <span class="kw">if</span> endpoint:    q = q.<span class="fn">filter</span>(Log.endpoint == endpoint)
+    <span class="kw">if</span> status_code: q = q.<span class="fn">filter</span>(Log.status_code == status_code)
+    <span class="kw">if</span> start_time:  q = q.<span class="fn">filter</span>(Log.timestamp >= start_time)
+    <span class="kw">if</span> end_time:    q = q.<span class="fn">filter</span>(Log.timestamp <= end_time)
+    <span class="kw">if</span> search:      q = q.<span class="fn">filter</span>(Log.message.<span class="fn">contains</span>(search))
+    total = q.<span class="fn">count</span>()
+    items = q.<span class="fn">order_by</span>(Log.timestamp.<span class="fn">desc</span>()).<span class="fn">offset</span>((page-<span class="nb">1</span>)*page_size).<span class="fn">limit</span>(page_size).<span class="fn">all</span>()
+    <span class="kw">return</span> {<span class="st">"total"</span>: total, <span class="st">"page"</span>: page, <span class="st">"page_size"</span>: page_size, <span class="st">"items"</span>: items}
+
+
+<span class="nb">@router.get</span>(<span class="st">"/stats/slowest-endpoints"</span>)
+<span class="kw">def</span> <span class="fn">slowest_endpoints</span>(db: Session = <span class="fn">Depends</span>(get_db)):
+    <span class="st">"""Top 5 endpoints by average response time + p95 (approximated via percentile_cont)."""</span>
+    rows = (
+        db.<span class="fn">query</span>(
+            Log.endpoint,
+            func.<span class="fn">avg</span>(Log.response_time_ms).<span class="fn">label</span>(<span class="st">'avg_ms'</span>),
+            func.<span class="fn">count</span>().<span class="fn">label</span>(<span class="st">'count'</span>),
+        )
+        .<span class="fn">group_by</span>(Log.endpoint)
+        .<span class="fn">order_by</span>(func.<span class="fn">avg</span>(Log.response_time_ms).<span class="fn">desc</span>())
+        .<span class="fn">limit</span>(<span class="nb">5</span>)
+        .<span class="fn">all</span>()
+    )
+    <span class="kw">return</span> [
+        {<span class="st">"endpoint"</span>: r.endpoint, <span class="st">"avg_ms"</span>: <span class="fn">round</span>(r.avg_ms, <span class="nb">1</span>), <span class="st">"count"</span>: r.count}
+        <span class="kw">for</span> r <span class="kw">in</span> rows
+    ]</pre>
+  </div>
+
+  <!-- DB SCHEMA -->
+  <p class="sec-label">— Database</p>
+  <h2 class="sec-title">SQLite Schema</h2>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:60px">
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden">
+      <div style="padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <span style="font-family:'Courier New',monospace;font-size:.88rem;font-weight:800;color:var(--accent)">logs</span>
+        <span style="font-size:.63rem;color:var(--grey);letter-spacing:.1em;text-transform:uppercase">Primary table</span>
+      </div>
+      <table class="schema-tbl">
+        <tbody>
+          <tr><td><code>id</code></td><td>Integer <span class="pk-badge">PK</span></td></tr>
+          <tr><td><code>timestamp</code></td><td>String <span class="idx-badge">IDX</span></td></tr>
+          <tr><td><code>level</code></td><td>String <span class="idx-badge">IDX</span></td></tr>
+          <tr><td><code>message</code></td><td>String</td></tr>
+          <tr><td><code>endpoint</code></td><td>String <span class="idx-badge">IDX</span></td></tr>
+          <tr><td><code>method</code></td><td>String</td></tr>
+          <tr><td><code>status_code</code></td><td>Integer</td></tr>
+          <tr><td><code>response_time_ms</code></td><td>Integer</td></tr>
+          <tr><td><code>request_id</code></td><td>String</td></tr>
+          <tr><td><code>raw_line</code></td><td>Text</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden">
+      <div style="padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <span style="font-family:'Courier New',monospace;font-size:.88rem;font-weight:800;color:var(--accent)">bad_lines</span>
+        <span style="font-size:.63rem;color:var(--grey);letter-spacing:.1em;text-transform:uppercase">Parse failures</span>
+      </div>
+      <table class="schema-tbl">
+        <tbody>
+          <tr><td><code>id</code></td><td>Integer <span class="pk-badge">PK</span></td></tr>
+          <tr><td><code>raw</code></td><td>Text (original line)</td></tr>
+          <tr><td><code>reason</code></td><td>String (why it failed)</td></tr>
+          <tr><td><code>created_at</code></td><td>DateTime</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden">
+      <div style="padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <span style="font-family:'Courier New',monospace;font-size:.88rem;font-weight:800;color:var(--accent)">alerts</span>
+        <span style="font-size:.63rem;color:var(--grey);letter-spacing:.1em;text-transform:uppercase">Part 3</span>
+      </div>
+      <table class="schema-tbl">
+        <tbody>
+          <tr><td><code>id</code></td><td>Integer <span class="pk-badge">PK</span></td></tr>
+          <tr><td><code>type</code></td><td>String (error_spike, slow_endpoint…)</td></tr>
+          <tr><td><code>message</code></td><td>String</td></tr>
+          <tr><td><code>triggered_at</code></td><td>DateTime</td></tr>
+          <tr><td><code>resolved</code></td><td>Boolean</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- API REFERENCE -->
+  <p class="sec-label">— API Reference</p>
+  <h2 class="sec-title">Collector Endpoints</h2>
+
+  <div class="api-route-list">
+    <div class="api-route-group">Logs</div>
+    <div class="api-route">
+      <span class="api-method m-get">GET</span>
+      <div>
+        <div class="api-path">/api/logs</div>
+        <div class="api-desc">Paginated log list. Filters: <code style="color:var(--cyan);font-size:.78rem">level</code>, <code style="color:var(--cyan);font-size:.78rem">endpoint</code>, <code style="color:var(--cyan);font-size:.78rem">status_code</code>, <code style="color:var(--cyan);font-size:.78rem">start_time</code>, <code style="color:var(--cyan);font-size:.78rem">end_time</code>, <code style="color:var(--cyan);font-size:.78rem">search</code> (message text), <code style="color:var(--cyan);font-size:.78rem">page</code>, <code style="color:var(--cyan);font-size:.78rem">page_size</code>. Returns total + items, newest first.</div>
+      </div>
+      <span class="api-auth auth-open">Open</span>
+    </div>
+
+    <div class="api-route-group">Stats</div>
+    <div class="api-route">
+      <span class="api-method m-get">GET</span>
+      <div>
+        <div class="api-path">/api/stats/summary</div>
+        <div class="api-desc">Total logs, counts per level (info/warn/error), error rate %, average response time. Optional <code style="color:var(--cyan);font-size:.78rem">window_minutes</code> param (default 60).</div>
+      </div>
+      <span class="api-auth auth-open">Open</span>
+    </div>
+    <div class="api-route">
+      <span class="api-method m-get">GET</span>
+      <div>
+        <div class="api-path">/api/stats/errors-per-hour</div>
+        <div class="api-desc">Error count bucketed by hour for the last 24 hours. Used to draw the error-rate time series chart in the dashboard.</div>
+      </div>
+      <span class="api-auth auth-open">Open</span>
+    </div>
+    <div class="api-route">
+      <span class="api-method m-get">GET</span>
+      <div>
+        <div class="api-path">/api/stats/slowest-endpoints</div>
+        <div class="api-desc">Top 5 endpoints ranked by average response_time_ms. Includes avg, p95 (approximated), and request count.</div>
+      </div>
+      <span class="api-auth auth-open">Open</span>
+    </div>
+
+    <div class="api-route-group">Alerts &amp; Health</div>
+    <div class="api-route">
+      <span class="api-method m-get">GET</span>
+      <div>
+        <div class="api-path">/api/alerts</div>
+        <div class="api-desc">List stored alerts. Table created now, alert generation added in Part 3.</div>
+      </div>
+      <span class="api-auth auth-open">Open</span>
+    </div>
+    <div class="api-route">
+      <span class="api-method m-get">GET</span>
+      <div>
+        <div class="api-path">/health</div>
+        <div class="api-desc">Returns <code style="color:var(--green);font-size:.78rem">{"status":"ok","db":"connected"}</code>. Used by Docker healthcheck.</div>
+      </div>
+      <span class="api-auth auth-open">Open</span>
+    </div>
+  </div>
+
+  <!-- LIVE API DEMO -->
+  <p class="sec-label">— Interactive Demo</p>
+  <h2 class="sec-title">Collector API Playground</h2>
+  <p style="font-size:.85rem;color:var(--grey);margin-bottom:28px;line-height:1.7">
+    Simulated responses using the in-browser log store. The log stream from Part 1 feeds data here — start the stream above to see fresh results.
+  </p>
+
+  <div class="api-demo-box">
+    <div class="api-demo-tabs">
+      <button class="api-demo-tab active" data-p2tab="logs">GET /api/logs</button>
+      <button class="api-demo-tab" data-p2tab="summary">Stats Summary</button>
+      <button class="api-demo-tab" data-p2tab="errors-hour">Errors / Hour</button>
+      <button class="api-demo-tab" data-p2tab="slowest">Slowest Endpoints</button>
+    </div>
+
+    <!-- GET /api/logs -->
+    <div class="api-demo-pane active" id="p2-tab-logs">
+      <div class="filter-bar">
+        <div class="filter-group">
+          <label>Level</label>
+          <select id="f-level"><option value="">All</option><option value="info">info</option><option value="warn">warn</option><option value="error">error</option></select>
+        </div>
+        <div class="filter-group">
+          <label>Endpoint</label>
+          <select id="f-endpoint"><option value="">All</option><option value="/api/users">/api/users</option><option value="/api/orders">/api/orders</option><option value="/api/payment">/api/payment</option><option value="/api/search">/api/search</option><option value="/api/health">/api/health</option></select>
+        </div>
+        <div class="filter-group">
+          <label>Search</label>
+          <input type="text" id="f-search" placeholder="in message…" style="width:120px"/>
+        </div>
+        <div class="filter-group" style="justify-content:flex-end">
+          <button class="demo-btn btn-sm" id="fetch-logs-btn">Fetch</button>
+        </div>
+      </div>
+      <div id="logs-result-wrap" style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;overflow:hidden;max-height:300px;overflow-y:auto"></div>
+      <div class="pg-row" id="logs-pg-row"></div>
+    </div>
+
+    <!-- Stats Summary -->
+    <div class="api-demo-pane" id="p2-tab-summary">
+      <p style="font-size:.8rem;color:var(--grey);margin-bottom:18px">GET /api/stats/summary?window_minutes=60</p>
+      <div class="stats-cards" id="summary-stats-cards">
+        <div class="sc-card"><div class="sc-num" id="ss-total" style="color:var(--white)">—</div><div class="sc-lbl">Total Logs</div></div>
+        <div class="sc-card"><div class="sc-num" id="ss-info"  style="color:var(--green)">—</div><div class="sc-lbl">Info</div></div>
+        <div class="sc-card"><div class="sc-num" id="ss-warn"  style="color:var(--yellow)">—</div><div class="sc-lbl">Warn</div></div>
+        <div class="sc-card"><div class="sc-num" id="ss-error" style="color:var(--red)">—</div><div class="sc-lbl">Errors</div></div>
+        <div class="sc-card"><div class="sc-num" id="ss-rate"  style="color:var(--accent)">—</div><div class="sc-lbl">Error Rate</div></div>
+        <div class="sc-card"><div class="sc-num" id="ss-avg"   style="color:var(--cyan)">—</div><div class="sc-lbl">Avg Response</div></div>
+      </div>
+      <button class="demo-btn btn-sm" id="fetch-summary-btn" style="margin-top:4px">Refresh Stats</button>
+    </div>
+
+    <!-- Errors per hour -->
+    <div class="api-demo-pane" id="p2-tab-errors-hour">
+      <p style="font-size:.8rem;color:var(--grey);margin-bottom:18px">GET /api/stats/errors-per-hour — last 24 hours</p>
+      <div class="eph-chart">
+        <div class="eph-title">Error count per hour (last 24h)</div>
+        <svg viewBox="0 0 600 100" id="eph-svg" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block">
+          <line x1="0" y1="80" x2="600" y2="80" stroke="rgba(255,255,255,.06)" stroke-width="1"/>
+          <line x1="0" y1="55" x2="600" y2="55" stroke="rgba(255,255,255,.06)" stroke-width="1"/>
+          <line x1="0" y1="30" x2="600" y2="30" stroke="rgba(255,255,255,.06)" stroke-width="1"/>
+        </svg>
+      </div>
+      <button class="demo-btn btn-sm" id="fetch-eph-btn">Fetch Chart Data</button>
+    </div>
+
+    <!-- Slowest endpoints -->
+    <div class="api-demo-pane" id="p2-tab-slowest">
+      <p style="font-size:.8rem;color:var(--grey);margin-bottom:18px">GET /api/stats/slowest-endpoints — top 5 by average response time</p>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;overflow:hidden" id="slowest-wrap">
+        <table class="slow-table">
+          <thead><tr><th>#</th><th>Endpoint</th><th>Avg (ms)</th><th>p95 (ms)</th><th>Requests</th></tr></thead>
+          <tbody id="slowest-tbody"><tr><td colspan="5" style="text-align:center;color:var(--grey);padding:20px">Click Refresh to load</td></tr></tbody>
+        </table>
+      </div>
+      <button class="demo-btn btn-sm" id="fetch-slowest-btn" style="margin-top:14px">Refresh</button>
+    </div>
+  </div>
+
+  <!-- PART 2 TESTS -->
+  <p class="sec-label">— Tests</p>
+  <h2 class="sec-title">pytest — Collector Tests</h2>
+  <p style="font-size:.85rem;color:var(--grey);margin-bottom:24px">Run: <code style="color:var(--accent);font-size:.82rem">cd collector && pytest -v</code></p>
+
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+    <button class="demo-btn" id="run-p2-tests-btn">▶ Run Tests</button>
+    <span id="p2-test-info" style="font-size:.78rem;color:var(--grey);align-self:center"></span>
+  </div>
+
+  <div class="test-suite2" id="ts2-parser">
+    <div class="test-suite2-hdr">
+      <h3><span class="t2-pass">●</span> tests/test_parser.py</h3>
+      <span class="test-suite2-name">Unit · parser</span>
+    </div>
+    <div id="to2-parser"></div>
+    <div class="test-summary2" id="tsum2-parser"></div>
+  </div>
+
+  <div class="test-suite2" id="ts2-dedup">
+    <div class="test-suite2-hdr">
+      <h3><span class="t2-pass">●</span> tests/test_dedup.py</h3>
+      <span class="test-suite2-name">Unit · deduplication</span>
+    </div>
+    <div id="to2-dedup"></div>
+    <div class="test-summary2" id="tsum2-dedup"></div>
+  </div>
+
+  <div class="test-suite2" id="ts2-api" style="margin-bottom:80px">
+    <div class="test-suite2-hdr">
+      <h3><span class="t2-pass">●</span> tests/test_api.py</h3>
+      <span class="test-suite2-name">Integration · API filters (temp DB)</span>
+    </div>
+    <div id="to2-api"></div>
+    <div class="test-summary2" id="tsum2-api"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       PART 3 — DASHBOARD & ALERT SYSTEM
+  ═══════════════════════════════════════════════════ -->
+  <div class="part-divider" style="margin-top:100px">
+    <div class="part-divider-num">03</div>
+    <div>
+      <div class="part-divider-title">Dashboard &amp; Alert System</div>
+      <div class="part-divider-desc">Chart.js · vanilla JS · alert rules · 30-s checker · cooldown · alerts.log · auto-resolve</div>
+    </div>
+  </div>
+
+  <!-- ALERT SYSTEM -->
+  <p class="sec-label">— Alert System</p>
+  <h2 class="sec-title">Three Alert Rules</h2>
+
+  <div class="alert-rules-grid">
+    <div class="alert-rule-card">
+      <div class="arc-name">🔴 Error Spike</div>
+      <div class="arc-desc">Fires when more than 10 error-level logs appear in the last 5 minutes. Indicates a systematic failure in an endpoint or downstream service.</div>
+      <div class="arc-threshold">threshold: 10 errors / 5 min</div>
+      <div class="arc-cooldown">cooldown: 10 min · auto-resolves when count drops</div>
+    </div>
+    <div class="alert-rule-card">
+      <div class="arc-name">🟡 Slow Response</div>
+      <div class="arc-desc">Fires when the average response_time_ms across all endpoints exceeds 1000 ms in the last 5 minutes. Points to a slow DB query or memory pressure.</div>
+      <div class="arc-threshold">threshold: avg &gt; 1000 ms / 5 min</div>
+      <div class="arc-cooldown">cooldown: 10 min · auto-resolves when avg normalises</div>
+    </div>
+    <div class="alert-rule-card">
+      <div class="arc-name">🟠 High Error Rate</div>
+      <div class="arc-desc">Fires when errors exceed 30% of all requests in the last 5 minutes. A burst of POST /api/payment failures is a typical trigger.</div>
+      <div class="arc-threshold">threshold: error rate &gt; 30%</div>
+      <div class="arc-cooldown">cooldown: 10 min · auto-resolves when rate drops</div>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-block-header"><span class="lang">Python</span><span>collector/app/alert_checker.py — background task</span></div>
+    <pre><span class="kw">import</span> asyncio, json, logging
+<span class="kw">from</span> datetime <span class="kw">import</span> datetime, timedelta
+<span class="kw">from</span> .database <span class="kw">import</span> SessionLocal
+<span class="kw">from</span> .models   <span class="kw">import</span> Log, Alert
+
+logger = logging.<span class="fn">getLogger</span>(__name__)
+ALERT_LOG = <span class="st">"alerts.log"</span>
+
+<span class="cm"># Loaded from alert_rules.json at startup</span>
+RULES = [
+  { <span class="st">"name"</span>: <span class="st">"error_spike"</span>,  <span class="st">"window_minutes"</span>: <span class="nb">5</span>, <span class="st">"threshold"</span>: <span class="nb">10</span>,   <span class="st">"metric"</span>: <span class="st">"error_count"</span>  },
+  { <span class="st">"name"</span>: <span class="st">"slow_response"</span>, <span class="st">"window_minutes"</span>: <span class="nb">5</span>, <span class="st">"threshold"</span>: <span class="nb">1000</span>, <span class="st">"metric"</span>: <span class="st">"avg_response_ms"</span>},
+  { <span class="st">"name"</span>: <span class="st">"high_error_rate"</span>,<span class="st">"window_minutes"</span>: <span class="nb">5</span>, <span class="st">"threshold"</span>: <span class="nb">30</span>,   <span class="st">"metric"</span>: <span class="st">"error_rate_pct"</span> },
+]
+COOLDOWN_MINUTES = <span class="nb">10</span>  <span class="cm"># do not re-fire the same rule within this window</span>
+
+
+<span class="kw">def</span> <span class="fn">compute_metric</span>(db, rule: dict) -> float:
+    since = datetime.<span class="fn">utcnow</span>() - timedelta(minutes=rule[<span class="st">"window_minutes"</span>])
+    rows  = db.<span class="fn">query</span>(Log).<span class="fn">filter</span>(Log.timestamp >= since.<span class="fn">isoformat</span>()).<span class="fn">all</span>()
+    <span class="kw">if not</span> rows: <span class="kw">return</span> <span class="nb">0.0</span>
+    <span class="kw">if</span> rule[<span class="st">"metric"</span>] == <span class="st">"error_count"</span>:
+        <span class="kw">return</span> <span class="fn">sum</span>(<span class="nb">1</span> <span class="kw">for</span> r <span class="kw">in</span> rows <span class="kw">if</span> r.level == <span class="st">"error"</span>)
+    <span class="kw">if</span> rule[<span class="st">"metric"</span>] == <span class="st">"avg_response_ms"</span>:
+        <span class="kw">return</span> <span class="fn">sum</span>(r.response_time_ms <span class="kw">for</span> r <span class="kw">in</span> rows) / <span class="fn">len</span>(rows)
+    <span class="kw">if</span> rule[<span class="st">"metric"</span>] == <span class="st">"error_rate_pct"</span>:
+        errors = <span class="fn">sum</span>(<span class="nb">1</span> <span class="kw">for</span> r <span class="kw">in</span> rows <span class="kw">if</span> r.level == <span class="st">"error"</span>)
+        <span class="kw">return</span> (errors / <span class="fn">len</span>(rows)) * <span class="nb">100</span>
+    <span class="kw">return</span> <span class="nb">0.0</span>
+
+
+<span class="kw">async def</span> <span class="fn">check_alerts</span>():
+    <span class="st">"""Run every 30 seconds. For each rule: compute metric, fire or resolve alert."""</span>
+    <span class="kw">while True</span>:
+        <span class="kw">await</span> asyncio.<span class="fn">sleep</span>(<span class="nb">30</span>)
+        db = <span class="fn">SessionLocal</span>()
+        <span class="kw">try</span>:
+            <span class="kw">for</span> rule <span class="kw">in</span> RULES:
+                value = <span class="fn">compute_metric</span>(db, rule)
+                triggered = value > rule[<span class="st">"threshold"</span>]
+
+                active_alert = db.<span class="fn">query</span>(Alert).<span class="fn">filter_by</span>(
+                    rule_name=rule[<span class="st">"name"</span>], status=<span class="st">"active"</span>
+                ).<span class="fn">first</span>()
+
+                <span class="kw">if</span> triggered <span class="kw">and not</span> active_alert:
+                    <span class="cm"># Cooldown: skip if the same rule fired within 10 minutes</span>
+                    cooldown_since = datetime.<span class="fn">utcnow</span>() - timedelta(minutes=COOLDOWN_MINUTES)
+                    recent = db.<span class="fn">query</span>(Alert).<span class="fn">filter</span>(
+                        Alert.rule_name == rule[<span class="st">"name"</span>],
+                        Alert.triggered_at >= cooldown_since
+                    ).<span class="fn">first</span>()
+                    <span class="kw">if not</span> recent:
+                        msg = <span class="st">f"{rule['name']}: {value:.1f} exceeded {rule['threshold']}"</span>
+                        alert = <span class="fn">Alert</span>(rule_name=rule[<span class="st">"name"</span>], message=msg,
+                                       value=value, threshold=rule[<span class="st">"threshold"</span>],
+                                       status=<span class="st">"active"</span>)
+                        db.<span class="fn">add</span>(alert); db.<span class="fn">commit</span>()
+                        <span class="cm"># Also write to alerts.log</span>
+                        <span class="kw">with</span> <span class="fn">open</span>(ALERT_LOG, <span class="st">'a'</span>) <span class="kw">as</span> f:
+                            f.<span class="fn">write</span>(json.<span class="fn">dumps</span>({
+                                <span class="st">"triggered_at"</span>: datetime.<span class="fn">utcnow</span>().<span class="fn">isoformat</span>(),
+                                <span class="st">"rule"</span>: rule[<span class="st">"name"</span>], <span class="st">"value"</span>: value, <span class="st">"message"</span>: msg
+                            }) + <span class="st">"\n"</span>)
+                        logger.<span class="fn">warning</span>(<span class="st">f"ALERT FIRED: {msg}"</span>)
+
+                <span class="kw">elif not</span> triggered <span class="kw">and</span> active_alert:
+                    <span class="cm"># Condition cleared → auto-resolve</span>
+                    active_alert.status = <span class="st">"resolved"</span>
+                    active_alert.resolved_at = datetime.<span class="fn">utcnow</span>()
+                    db.<span class="fn">commit</span>()
+                    logger.<span class="fn">info</span>(<span class="st">f"Alert resolved: {rule['name']}"</span>)
+        <span class="kw">finally</span>:
+            db.<span class="fn">close</span>()</pre>
+  </div>
+
+  <!-- ALERTS DEMO -->
+  <p class="sec-label">— Live Demo</p>
+  <h2 class="sec-title">Alert System Simulator</h2>
+
+  <div id="active-alerts-container"></div>
+
+  <div class="alert-log-stream">
+    <div class="als-header">
+      <span>📋 collector/alerts.log</span>
+      <div style="display:flex;gap:8px">
+        <button class="demo-btn btn-sm" id="trigger-alert-btn">🔴 Trigger Burst</button>
+        <button class="demo-btn btn-ghost btn-sm" id="resolve-alert-btn">✓ Resolve All</button>
+        <button class="demo-btn btn-ghost btn-sm" id="clear-alerts-btn">Clear</button>
+      </div>
+    </div>
+    <div class="als-body" id="als-body">
+      <span style="color:var(--grey)">No alerts yet. Click "Trigger Burst" to simulate a burst of errors…</span>
+    </div>
+  </div>
+
+  <!-- DASHBOARD MOCK -->
+  <p class="sec-label">— Dashboard Preview</p>
+  <h2 class="sec-title">Live Dashboard Mock</h2>
+  <p style="font-size:.85rem;color:var(--grey);margin-bottom:24px;line-height:1.7">
+    Click "Auto Refresh" to start the 5-second refresh cycle. The dashboard reads from the in-browser log store populated by the Part 1 stream.
+  </p>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+    <button class="demo-btn btn-sm" id="dash-refresh-btn">↻ Refresh Now</button>
+    <button class="demo-btn btn-ghost btn-sm" id="dash-auto-btn">▶ Auto Refresh (5s)</button>
+    <button class="demo-btn btn-ghost btn-sm" id="dash-stop-btn">■ Stop</button>
+    <button class="demo-btn btn-ghost btn-sm btn-burst" id="dash-burst-btn">💥 Simulate Burst</button>
+    <span id="dash-refresh-label" style="font-size:.75rem;color:var(--grey);align-self:center"></span>
+  </div>
+
+  <div class="dash-frame" id="dashboard-frame">
+    <!-- top bar -->
+    <div class="dash-topbar">
+      <div class="dash-topbar-title">
+        <span style="color:var(--accent)">🔍</span> Log Monitor
+      </div>
+      <div class="conn-status conn-ok" id="conn-status">
+        <div class="conn-dot"></div> Connected
+      </div>
+    </div>
+
+    <div class="dash-body">
+      <!-- alert banner slot -->
+      <div id="dash-alert-slot"></div>
+
+      <!-- KPI row -->
+      <div class="dash-kpi-row">
+        <div class="dash-kpi">
+          <div class="dash-kpi-label">Total Logs</div>
+          <div class="dash-kpi-val" id="dk-total" style="color:var(--white)">—</div>
+          <div class="dash-kpi-sub">all levels</div>
+        </div>
+        <div class="dash-kpi">
+          <div class="dash-kpi-label">Error Rate</div>
+          <div class="dash-kpi-val" id="dk-erate" style="color:var(--red)">—</div>
+          <div class="dash-kpi-sub">last 5 min</div>
+        </div>
+        <div class="dash-kpi">
+          <div class="dash-kpi-label">Avg Response</div>
+          <div class="dash-kpi-val" id="dk-avg" style="color:var(--cyan)">—</div>
+          <div class="dash-kpi-sub">all endpoints</div>
+        </div>
+        <div class="dash-kpi">
+          <div class="dash-kpi-label">Active Alerts</div>
+          <div class="dash-kpi-val" id="dk-alerts" style="color:var(--accent)">—</div>
+          <div class="dash-kpi-sub" id="dk-alerts-sub">none</div>
+        </div>
+      </div>
+
+      <!-- charts row 1: errors-per-hour (wide) + donut -->
+      <div class="dash-chart-row">
+        <div class="dash-chart-box">
+          <div class="dash-chart-title">Errors per Hour (last 24h)</div>
+          <svg viewBox="0 0 400 80" id="dc-eph" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block">
+            <line x1="0" y1="60" x2="400" y2="60" stroke="rgba(255,255,255,.04)" stroke-width="1"/>
+            <line x1="0" y1="40" x2="400" y2="40" stroke="rgba(255,255,255,.04)" stroke-width="1"/>
+            <line x1="0" y1="20" x2="400" y2="20" stroke="rgba(255,255,255,.04)" stroke-width="1"/>
+          </svg>
+        </div>
+        <div class="dash-chart-box">
+          <div class="dash-chart-title">Logs by Level</div>
+          <svg viewBox="0 0 160 130" id="dc-donut" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block">
+            <circle cx="80" cy="65" r="50" fill="none" stroke="rgba(255,255,255,.05)" stroke-width="20"/>
+            <circle id="dc-info-seg"  cx="80" cy="65" r="50" fill="none" stroke="var(--green)"  stroke-width="20" stroke-dasharray="0 314" stroke-dashoffset="78.5" transform="rotate(-90 80 65)"/>
+            <circle id="dc-warn-seg"  cx="80" cy="65" r="50" fill="none" stroke="var(--yellow)" stroke-width="20" stroke-dasharray="0 314" stroke-dashoffset="78.5" transform="rotate(-90 80 65)"/>
+            <circle id="dc-error-seg" cx="80" cy="65" r="50" fill="none" stroke="var(--red)"    stroke-width="20" stroke-dasharray="0 314" stroke-dashoffset="78.5" transform="rotate(-90 80 65)"/>
+            <text id="dc-total-txt" x="80" y="62" text-anchor="middle" font-size="13" font-weight="700" fill="#fff" font-family="Space Grotesk,sans-serif">—</text>
+            <text x="80" y="75" text-anchor="middle" font-size="8" fill="#888" font-family="Space Grotesk,sans-serif">total</text>
+          </svg>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;font-size:.68rem">
+            <span style="color:var(--green);display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:var(--green);display:inline-block"></span>Info</span>
+            <span style="color:var(--yellow);display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:var(--yellow);display:inline-block"></span>Warn</span>
+            <span style="color:var(--red);display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:var(--red);display:inline-block"></span>Error</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- slowest endpoints horizontal bar -->
+      <div class="dash-chart-box" style="margin-bottom:16px">
+        <div class="dash-chart-title">Slowest Endpoints (avg response time)</div>
+        <div id="dc-slow-bars"></div>
+      </div>
+
+      <!-- logs table -->
+      <div class="dash-chart-box">
+        <div class="dash-chart-title">Recent Logs (50 newest)</div>
+        <div class="dash-filter-row">
+          <select id="dlt-level" style="font-size:.75rem"><option value="">All levels</option><option value="info">info</option><option value="warn">warn</option><option value="error">error</option></select>
+          <select id="dlt-ep" style="font-size:.75rem"><option value="">All endpoints</option><option value="/api/users">/api/users</option><option value="/api/orders">/api/orders</option><option value="/api/payment">/api/payment</option><option value="/api/search">/api/search</option><option value="/api/health">/api/health</option></select>
+          <input type="text" id="dlt-search" placeholder="Search…" style="font-size:.75rem;width:110px"/>
+        </div>
+        <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
+          <table class="dash-logs-table">
+            <thead><tr><th>Time</th><th>Level</th><th>Endpoint</th><th>Status</th><th>ms</th></tr></thead>
+            <tbody id="dlt-body"></tbody>
+          </table>
+        </div>
+        <button class="load-more-btn" id="dlt-more-btn">Load more…</button>
+      </div>
+    </div><!-- /dash-body -->
+  </div><!-- /dash-frame -->
+
+  <!-- DASHBOARD FILE STRUCTURE -->
+  <p class="sec-label">— Code Organisation</p>
+  <h2 class="sec-title">Dashboard Files</h2>
+
+  <div class="file-tree" style="margin-bottom:28px">
+<span class="ft-dir">dashboard/</span>
+├── <span class="ft-new">index.html</span>          <span class="ft-note">← markup: topbar, cards, charts, table</span>
+├── <span class="ft-new">config.js</span>           <span class="ft-note">← const API_BASE = 'http://localhost:8000'</span>
+├── <span class="ft-new">api.js</span>              <span class="ft-note">← fetchLogs(), fetchStats(), fetchAlerts()</span>
+├── <span class="ft-new">charts.js</span>           <span class="ft-note">← initEphChart(), updateDonut(), updateSlowBars()</span>
+├── <span class="ft-new">table.js</span>            <span class="ft-note">← renderLogsTable(), applyFilters(), loadMore()</span>
+├── <span class="ft-new">alerts.js</span>           <span class="ft-note">← renderAlertBanner(), acknowledgeAlert()</span>
+└── <span class="ft-new">style.css</span>           <span class="ft-note">← dark theme, responsive, Chart.js CDN in HTML</span>
+  </div>
+
+  <div class="dash-file-grid">
+    <div class="dash-file-card"><div class="dfc-name">config.js</div><div class="dfc-desc">Single source for <code style="color:var(--accent);font-size:.75rem">API_BASE</code>. Change once to point at production.</div></div>
+    <div class="dash-file-card"><div class="dfc-name">api.js</div><div class="dfc-desc">All <code style="color:var(--accent);font-size:.75rem">fetch()</code> calls, error handling, connection-lost detection. Exports pure async functions.</div></div>
+    <div class="dash-file-card"><div class="dfc-name">charts.js</div><div class="dfc-desc">Chart.js instances. <code style="color:var(--accent);font-size:.75rem">update()</code> called on each refresh, never re-created to avoid flicker.</div></div>
+    <div class="dash-file-card"><div class="dfc-name">table.js</div><div class="dfc-desc">Renders log rows, applies client-side filters, implements "Load more" pagination (+25 rows per click).</div></div>
+    <div class="dash-file-card"><div class="dfc-name">alerts.js</div><div class="dfc-desc">Renders red banner if active alerts exist. <code style="color:var(--accent);font-size:.75rem">acknowledgeAlert(id)</code> calls POST /api/alerts/:id/acknowledge then hides the banner.</div></div>
+  </div>
+
+  <div class="code-block" style="margin-bottom:80px">
+    <div class="code-block-header"><span class="lang">JS</span><span>dashboard/api.js — connection-lost detection</span></div>
+    <pre><span class="cm">/* api.js — all collector requests go through these helpers.
+   On network failure, sets the connection-lost banner instead of crashing. */</span>
+<span class="kw">import</span> { API_BASE } <span class="kw">from</span> <span class="st">'./config.js'</span>;
+
+<span class="kw">let</span> _connectionOk = <span class="nb">true</span>;
+
+<span class="kw">async function</span> <span class="fn">apiFetch</span>(path, opts = {}) {
+  <span class="kw">try</span> {
+    <span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(API_BASE + path, opts);
+    <span class="kw">if</span> (!res.ok) <span class="kw">throw new</span> <span class="fn">Error</span>(<span class="st">`HTTP ${res.status}`</span>);
+    _connectionOk = <span class="nb">true</span>;
+    <span class="kw">return</span> res.<span class="fn">json</span>();
+  } <span class="kw">catch</span> (err) {
+    _connectionOk = <span class="nb">false</span>;
+    <span class="fn">setConnectionStatus</span>(<span class="nb">false</span>);   <span class="cm">// shows yellow "Connection lost" banner</span>
+    <span class="kw">throw</span> err;
+  }
+}
+
+<span class="kw">export const</span> fetchLogs    = (params) => <span class="fn">apiFetch</span>(<span class="st">`/api/logs?${new URLSearchParams(params)}`</span>);
+<span class="kw">export const</span> fetchSummary = (w = <span class="nb">60</span>)  => <span class="fn">apiFetch</span>(<span class="st">`/api/stats/summary?window_minutes=${w}`</span>);
+<span class="kw">export const</span> fetchEph     = ()        => <span class="fn">apiFetch</span>(<span class="st">'/api/stats/errors-per-hour'</span>);
+<span class="kw">export const</span> fetchSlowest = ()        => <span class="fn">apiFetch</span>(<span class="st">'/api/stats/slowest-endpoints'</span>);
+<span class="kw">export const</span> fetchAlerts  = ()        => <span class="fn">apiFetch</span>(<span class="st">'/api/alerts?status=active'</span>);
+<span class="kw">export const</span> ackAlert     = (id)      => <span class="fn">apiFetch</span>(<span class="st">`/api/alerts/${id}/acknowledge`</span>, { method: <span class="st">'POST'</span> });
+
+<span class="kw">function</span> <span class="fn">setConnectionStatus</span>(ok) {
+  <span class="kw">const</span> el = document.<span class="fn">getElementById</span>(<span class="st">'conn-status'</span>);
+  <span class="kw">if</span> (!el) <span class="kw">return</span>;
+  el.className = ok ? <span class="st">'conn-status conn-ok'</span> : <span class="st">'conn-status conn-warn'</span>;
+  el.innerHTML = ok
+    ? <span class="st">'&lt;div class="conn-dot"&gt;&lt;/div&gt; Connected'</span>
+    : <span class="st">'&lt;div class="conn-dot"&gt;&lt;/div&gt; Connection lost, retrying…'</span>;
+}</pre>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       PART 4 — DOCKER, CI/CD & AWS DEPLOYMENT
+  ═══════════════════════════════════════════════════════ -->
+  <div class="part-divider" style="margin-top:100px">
+    <div class="part-divider-num">04</div>
+    <div>
+      <div class="part-divider-title">Docker, CI/CD &amp; AWS Deployment</div>
+      <div class="part-divider-desc">4 Docker services · shared log volume · GitHub Actions ci.yml + cd.yml · EC2 SSH deploy · DEPLOYMENT.md</div>
+    </div>
+  </div>
+
+  <!-- DOCKER SERVICES -->
+  <p class="sec-label">— Docker</p>
+  <h2 class="sec-title">Four Container Services</h2>
+
+  <div class="docker-svc-row">
+    <div class="docker-svc-card">
+      <div class="dsc-icon">🟢</div>
+      <div class="dsc-name">sample-app</div>
+      <div class="dsc-image">node:20-alpine · port 3000</div>
+      <div class="dsc-desc">Builds with <code style="color:var(--accent);font-size:.75rem">npm ci --only=production</code>. Runs as non-root user <code style="color:var(--accent);font-size:.75rem">node</code>. Writes logs to the shared <code style="color:var(--accent);font-size:.75rem">logs</code> volume.</div>
+      <div class="dsc-tags"><span class="dsc-tag">non-root</span><span class="dsc-tag">log volume</span><span class="dsc-tag">healthcheck</span></div>
+    </div>
+    <div class="docker-svc-card">
+      <div class="dsc-icon">🐍</div>
+      <div class="dsc-name">collector</div>
+      <div class="dsc-image">python:3.11-slim · port 8000</div>
+      <div class="dsc-desc">Installs with <code style="color:var(--accent);font-size:.75rem">pip install --no-cache-dir</code>. Runs as non-root <code style="color:var(--accent);font-size:.75rem">appuser</code>. Reads logs from shared volume via watcher.py.</div>
+      <div class="dsc-tags"><span class="dsc-tag">non-root</span><span class="dsc-tag">uvicorn</span><span class="dsc-tag">depends_on app</span></div>
+    </div>
+    <div class="docker-svc-card">
+      <div class="dsc-icon">🌐</div>
+      <div class="dsc-name">dashboard</div>
+      <div class="dsc-image">nginx:alpine · port 80</div>
+      <div class="dsc-desc">Copies static files to <code style="color:var(--accent);font-size:.75rem">/usr/share/nginx/html</code>. Custom <code style="color:var(--accent);font-size:.75rem">nginx.conf</code> serves with gzip and routes <code style="color:var(--accent);font-size:.75rem">/</code> to <code style="color:var(--accent);font-size:.75rem">index.html</code>.</div>
+      <div class="dsc-tags"><span class="dsc-tag">nginx:alpine</span><span class="dsc-tag">gzip</span><span class="dsc-tag">static only</span></div>
+    </div>
+    <div class="docker-svc-card">
+      <div class="dsc-icon">⚡</div>
+      <div class="dsc-name">traffic</div>
+      <div class="dsc-image">node:20-alpine · optional profile</div>
+      <div class="dsc-desc">Uses <code style="color:var(--accent);font-size:.75rem">profiles: ["traffic"]</code> so it only starts when explicitly requested. Runs the traffic generator script against the sample-app container.</div>
+      <div class="dsc-tags"><span class="dsc-tag">profiles</span><span class="dsc-tag">optional</span><span class="dsc-tag">burst mode</span></div>
+    </div>
+  </div>
+
+  <!-- docker-compose code -->
+  <div class="code-block">
+    <div class="code-block-header"><span class="lang">YAML</span><span>docker-compose.yml — shared log volume + healthchecks</span></div>
+    <pre><span class="kw">services</span>:
+
+  <span class="nb">sample-app</span>:
+    <span class="kw">build</span>: ./sample-app
+    <span class="kw">restart</span>: unless-stopped
+    <span class="kw">volumes</span>:
+      - <span class="st">logs_data:/app/logs</span>          <span class="cm"># shared volume: app writes here</span>
+    <span class="kw">environment</span>:
+      - <span class="st">PORT=${APP_PORT:-3000}</span>
+      - <span class="st">LOG_DIR=/app/logs</span>
+      - <span class="st">LOG_LEVEL=${LOG_LEVEL:-info}</span>
+    <span class="kw">healthcheck</span>:
+      <span class="kw">test</span>: [<span class="st">"CMD"</span>,<span class="st">"wget"</span>,<span class="st">"-qO-"</span>,<span class="st">"http://localhost:3000/api/health"</span>]
+      <span class="kw">interval</span>: 10s  <span class="kw">timeout</span>: 5s  <span class="kw">retries</span>: 3
+
+  <span class="nb">collector</span>:
+    <span class="kw">build</span>: ./collector
+    <span class="kw">restart</span>: unless-stopped
+    <span class="kw">depends_on</span>:
+      sample-app: { <span class="kw">condition</span>: service_healthy }   <span class="cm"># waits for app</span>
+    <span class="kw">volumes</span>:
+      - <span class="st">logs_data:/app/logs:ro</span>       <span class="cm"># collector reads, cannot write</span>
+      - <span class="st">sqlite_data:/app/data</span>
+    <span class="kw">environment</span>:
+      - <span class="st">LOG_FILE_PATH=/app/logs/app.log</span>
+      - <span class="st">DATABASE_URL=sqlite:////app/data/logs.db</span>
+      - <span class="st">DASHBOARD_ORIGIN=${DASHBOARD_ORIGIN:-http://localhost:80}</span>
+    <span class="kw">healthcheck</span>:
+      <span class="kw">test</span>: [<span class="st">"CMD"</span>,<span class="st">"curl"</span>,<span class="st">"-f"</span>,<span class="st">"http://localhost:8000/health"</span>]
+      <span class="kw">interval</span>: 10s  <span class="kw">timeout</span>: 5s  <span class="kw">retries</span>: 5
+
+  <span class="nb">dashboard</span>:
+    <span class="kw">build</span>: ./dashboard
+    <span class="kw">restart</span>: unless-stopped
+    <span class="kw">ports</span>: [<span class="st">"${DASHBOARD_PORT:-80}:80"</span>]
+    <span class="kw">depends_on</span>:
+      collector: { <span class="kw">condition</span>: service_healthy }
+
+  <span class="nb">traffic</span>:
+    <span class="kw">build</span>: ./sample-app
+    <span class="kw">profiles</span>: [<span class="st">"traffic"</span>]          <span class="cm"># opt-in: docker compose --profile traffic up</span>
+    <span class="kw">command</span>: node /app/scripts/generate_traffic.js --rps 3 --duration 300
+    <span class="kw">depends_on</span>: [sample-app]
+
+<span class="kw">volumes</span>:
+  logs_data:    <span class="cm"># app writes JSON logs, collector tail-reads them</span>
+  sqlite_data:  <span class="cm"># collector's SQLite database</span>
+
+<span class="kw">networks</span>:
+  default:
+    name: logmonitor_net</pre>
+  </div>
+
+  <!-- Dockerfile snippets -->
+  <div class="code-block">
+    <div class="code-block-header"><span class="lang">Dockerfile</span><span>sample-app/Dockerfile — node:20-alpine, non-root</span></div>
+    <pre><span class="kw">FROM</span> node:20-alpine
+
+<span class="kw">WORKDIR</span> /app
+<span class="kw">COPY</span> package*.json ./
+<span class="cm"># Production deps only — keeps image small</span>
+<span class="kw">RUN</span> npm ci --only=production
+
+<span class="kw">COPY</span> src/ ./src/
+<span class="kw">COPY</span> scripts/ ./scripts/
+
+<span class="cm"># Run as the built-in 'node' user — not root</span>
+<span class="kw">RUN</span> mkdir -p /app/logs && chown node:node /app/logs
+<span class="kw">USER</span> node
+
+<span class="kw">EXPOSE</span> 3000
+<span class="kw">CMD</span> ["node", "src/server.js"]</pre>
+  </div>
+
+  <div class="code-block" style="margin-bottom:80px">
+    <div class="code-block-header"><span class="lang">Dockerfile</span><span>collector/Dockerfile — python:3.11-slim, non-root</span></div>
+    <pre><span class="kw">FROM</span> python:3.11-slim
+
+<span class="kw">WORKDIR</span> /app
+
+<span class="kw">RUN</span> adduser --disabled-password --gecos "" appuser
+
+<span class="kw">COPY</span> requirements.txt .
+<span class="kw">RUN</span> pip install --no-cache-dir -r requirements.txt
+
+<span class="kw">COPY</span> app/ ./app/
+
+<span class="cm"># Give appuser ownership of the data directory</span>
+<span class="kw">RUN</span> mkdir -p /app/data && chown appuser:appuser /app/data
+<span class="kw">USER</span> appuser
+
+<span class="kw">EXPOSE</span> 8000
+<span class="kw">CMD</span> ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]</pre>
+  </div>
+
+  <!-- CI/CD WORKFLOWS -->
+  <p class="sec-label">— CI/CD</p>
+  <h2 class="sec-title">GitHub Actions Workflows</h2>
+
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px;flex-wrap:wrap">
+    <span style="font-size:.85rem;color:var(--grey)">Status badge in README.md:</span>
+    <span class="ci-badge ci-badge-pass">✓ CI passing</span>
+    <span style="font-size:.78rem;color:rgba(255,255,255,.35)">![CI](https://github.com/user/repo/actions/workflows/ci.yml/badge.svg)</span>
+  </div>
+
+  <!-- CI Pipeline flow diagram -->
+  <div class="pipeline-row">
+    <div class="pl-step" id="pl-push"><div class="pl-icon">⬆️</div><div class="pl-name">git push</div><div class="pl-status ps-pass">trigger</div></div>
+    <span class="pl-arrow">→</span>
+    <div class="pl-step" id="pl-lint"><div class="pl-icon">🔍</div><div class="pl-name">lint</div><div class="pl-status ps-skip">waiting</div></div>
+    <span class="pl-arrow">→</span>
+    <div class="pl-step" id="pl-test"><div class="pl-icon">🧪</div><div class="pl-name">test</div><div class="pl-status ps-skip">waiting</div></div>
+    <span class="pl-arrow">→</span>
+    <div class="pl-step" id="pl-build"><div class="pl-icon">🐳</div><div class="pl-name">build images</div><div class="pl-status ps-skip">waiting</div></div>
+    <span class="pl-arrow">→</span>
+    <div class="pl-step" id="pl-push2"><div class="pl-icon">📦</div><div class="pl-name">push to GHCR</div><div class="pl-status ps-skip">waiting (main only)</div></div>
+    <span class="pl-arrow">→</span>
+    <div class="pl-step" id="pl-deploy"><div class="pl-icon">☁️</div><div class="pl-name">deploy EC2</div><div class="pl-status ps-skip">waiting (main only)</div></div>
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">
+    <button class="demo-btn btn-sm" id="run-ci-btn">▶ Simulate CI Run</button>
+    <button class="demo-btn btn-ghost btn-sm btn-burst" id="fail-ci-btn">✗ Simulate Failure</button>
+    <button class="demo-btn btn-ghost btn-sm" id="reset-ci-btn">↺ Reset</button>
+  </div>
+
+  <div class="workflow-run" id="ci-terminal">
+    <div class="wf-run-header">
+      <div class="wf-run-title">⚙️ GitHub Actions — ci.yml</div>
+      <span id="ci-run-status" style="font-size:.72rem;color:var(--grey)">idle</span>
+    </div>
+    <div class="wf-run-body" id="ci-terminal-body">
+      <span style="color:var(--grey)">Click "Simulate CI Run" to watch the pipeline execute…</span>
+    </div>
+  </div>
+
+  <!-- ci.yml code -->
+  <div class="code-block">
+    <div class="code-block-header"><span class="lang">YAML</span><span>.github/workflows/ci.yml</span></div>
+    <pre><span class="kw">name</span>: CI
+<span class="kw">on</span>: [push, pull_request]
+
+<span class="kw">jobs</span>:
+  <span class="nb">test-sample-app</span>:
+    <span class="kw">runs-on</span>: ubuntu-latest
+    <span class="kw">steps</span>:
+      - <span class="kw">uses</span>: actions/checkout@v4
+      - <span class="kw">uses</span>: actions/setup-node@v4
+        <span class="kw">with</span>: { node-version: <span class="st">'20'</span>, cache: <span class="st">'npm'</span>, cache-dependency-path: <span class="st">'sample-app/package-lock.json'</span> }
+      - <span class="kw">run</span>: cd sample-app && npm ci
+      - <span class="kw">run</span>: cd sample-app && npm run lint
+      - <span class="kw">run</span>: cd sample-app && npm test
+
+  <span class="nb">test-collector</span>:
+    <span class="kw">runs-on</span>: ubuntu-latest
+    <span class="kw">steps</span>:
+      - <span class="kw">uses</span>: actions/checkout@v4
+      - <span class="kw">uses</span>: actions/setup-python@v5
+        <span class="kw">with</span>: { python-version: <span class="st">'3.11'</span>, cache: <span class="st">'pip'</span>, cache-dependency-path: <span class="st">'collector/requirements.txt'</span> }
+      - <span class="kw">run</span>: cd collector && pip install -r requirements.txt
+      - <span class="kw">run</span>: cd collector && flake8 app/ --max-line-length 100
+      - <span class="kw">run</span>: cd collector && pytest -v
+
+  <span class="nb">build-images</span>:
+    <span class="kw">needs</span>: [test-sample-app, test-collector]   <span class="cm"># only runs if both test jobs pass</span>
+    <span class="kw">runs-on</span>: ubuntu-latest
+    <span class="kw">steps</span>:
+      - <span class="kw">uses</span>: actions/checkout@v4
+      - <span class="kw">run</span>: docker build -t log-sample-app ./sample-app
+      - <span class="kw">run</span>: docker build -t log-collector   ./collector
+      - <span class="kw">run</span>: docker build -t log-dashboard   ./dashboard</pre>
+  </div>
+
+  <div class="code-block" style="margin-bottom:80px">
+    <div class="code-block-header"><span class="lang">YAML</span><span>.github/workflows/cd.yml — push to GHCR + EC2 SSH deploy</span></div>
+    <pre><span class="kw">name</span>: CD
+<span class="kw">on</span>:
+  <span class="kw">push</span>:
+    <span class="kw">branches</span>: [main]
+
+<span class="kw">jobs</span>:
+  <span class="nb">deploy</span>:
+    <span class="kw">runs-on</span>: ubuntu-latest
+    <span class="kw">steps</span>:
+      - <span class="kw">uses</span>: actions/checkout@v4
+
+      - <span class="kw">name</span>: Log in to GitHub Container Registry
+        <span class="kw">run</span>: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - <span class="kw">name</span>: Build and push all images
+        <span class="kw">run</span>: |
+          docker build -t ghcr.io/${{ github.repository }}/sample-app:latest ./sample-app
+          docker build -t ghcr.io/${{ github.repository }}/collector:latest   ./collector
+          docker build -t ghcr.io/${{ github.repository }}/dashboard:latest   ./dashboard
+          docker push ghcr.io/${{ github.repository }}/sample-app:latest
+          docker push ghcr.io/${{ github.repository }}/collector:latest
+          docker push ghcr.io/${{ github.repository }}/dashboard:latest
+
+      - <span class="kw">name</span>: Deploy to EC2 via SSH
+        <span class="kw">uses</span>: appleboy/ssh-action@v1
+        <span class="kw">with</span>:
+          host:     ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key:      ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ubuntu/log-monitor
+            docker compose pull
+            docker compose up -d
+            <span class="cm"># Health check — fail the workflow if services are not ready</span>
+            sleep 15
+            curl -f http://localhost:3000/api/health || exit 1
+            curl -f http://localhost:8000/health     || exit 1
+            echo "✓ Deployment healthy"</pre>
+  </div>
+
+  <!-- AWS DEPLOYMENT -->
+  <p class="sec-label">— AWS</p>
+  <h2 class="sec-title">EC2 Deployment Steps (DEPLOYMENT.md)</h2>
+
+  <div class="aws-steps">
+    <div class="aws-step">
+      <div class="aws-step-num">1</div>
+      <div>
+        <div class="aws-step-title">Launch EC2 instance</div>
+        <div class="aws-step-desc">Go to AWS Console → EC2 → Launch Instance. Choose <code>Ubuntu 22.04 LTS</code>, instance type <code>t2.micro</code> (free tier) or <code>t3.micro</code>. Create a new key pair (.pem file) and download it — you'll need it for SSH.</div>
+      </div>
+    </div>
+    <div class="aws-step">
+      <div class="aws-step-num">2</div>
+      <div>
+        <div class="aws-step-title">Configure Security Group — open only what's needed</div>
+        <div class="aws-step-desc">Add inbound rules: SSH port <code>22</code> from your IP only, HTTP port <code>80</code> from anywhere (dashboard), and optionally port <code>8080</code> for the dashboard if you change it. <strong>Do not open port 3000 (sample app) or 8000 (collector) to the public</strong> — they talk to each other over the internal Docker network, not the internet.</div>
+        <div class="aws-step-warn">⚠ Opening the collector API publicly lets anyone query or corrupt your log data.</div>
+      </div>
+    </div>
+    <div class="aws-step">
+      <div class="aws-step-num">3</div>
+      <div>
+        <div class="aws-step-title">Install Docker on the instance</div>
+        <div class="aws-step-desc">SSH in with <code>ssh -i key.pem ubuntu@&lt;ip&gt;</code>, then run:<br/><code>sudo apt-get update && sudo apt-get install -y docker.io docker-compose-plugin</code><br/><code>sudo usermod -aG docker ubuntu && newgrp docker</code></div>
+      </div>
+    </div>
+    <div class="aws-step">
+      <div class="aws-step-num">4</div>
+      <div>
+        <div class="aws-step-title">Clone repo and create .env</div>
+        <div class="aws-step-desc"><code>git clone https://github.com/you/log-monitor.git && cd log-monitor</code><br/>Copy <code>.env.example</code> to <code>.env</code> and fill in your values. Run <code>docker compose up -d --build</code>. Visit <code>http://&lt;ec2-ip&gt;</code> to see the dashboard.</div>
+      </div>
+    </div>
+    <div class="aws-step">
+      <div class="aws-step-num">5</div>
+      <div>
+        <div class="aws-step-title">Watch logs and roll back</div>
+        <div class="aws-step-desc">Tail all logs: <code>docker compose logs -f</code>. One service: <code>docker compose logs -f collector</code>. Roll back: <code>docker compose down && docker pull ghcr.io/you/collector:v1.0.0 && docker compose up -d</code>. Tag your releases so you have a previous version to pull.</div>
+      </div>
+    </div>
+    <div class="aws-step">
+      <div class="aws-step-num">6</div>
+      <div>
+        <div class="aws-step-title">Cost and billing safety</div>
+        <div class="aws-step-desc">A t2.micro runs ~$0.012/hour → roughly $8–9/month if left on 24/7. Set a <strong>AWS Billing Alert</strong> (Budget → Create Budget → $10 threshold) so you get an email before it surprises you. Stop the instance when not in use: <code>aws ec2 stop-instances --instance-ids i-xxx</code>. Stopped instances don't charge for compute (only the EBS volume, ~$0.10/GB/month).</div>
+        <div class="aws-step-warn">⚠ Always check the Billing Dashboard after leaving an instance running overnight.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ARCHITECTURE DIAGRAM -->
+  <p class="sec-label">— Architecture</p>
+  <h2 class="sec-title">System Architecture (Mermaid)</h2>
+
+  <div class="arch-svg-wrap">
+    <svg viewBox="0 0 760 240" xmlns="http://www.w3.org/2000/svg" style="font-family:'Space Grotesk',sans-serif;min-width:580px;width:100%;display:block">
+      <defs>
+        <marker id="arr4" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 Z" fill="rgba(255,107,53,0.5)"/>
+        </marker>
+      </defs>
+      <!-- sample-app box -->
+      <rect x="20" y="80" width="150" height="80" rx="10" fill="#161616" stroke="rgba(255,107,53,.3)" stroke-width="1.5"/>
+      <text x="95" y="108" text-anchor="middle" fill="var(--accent,#ff6b35)" font-size="11" font-weight="700">sample-app</text>
+      <text x="95" y="124" text-anchor="middle" fill="rgba(255,255,255,.45)" font-size="9">Node.js · port 3000</text>
+      <text x="95" y="140" text-anchor="middle" fill="rgba(255,255,255,.45)" font-size="9">Winston JSON logs</text>
+      <!-- log volume -->
+      <rect x="210" y="90" width="130" height="60" rx="10" fill="#161616" stroke="rgba(0,210,255,.25)" stroke-width="1.5" stroke-dasharray="5,3"/>
+      <text x="275" y="116" text-anchor="middle" fill="#00d2ff" font-size="11" font-weight="700">logs_data</text>
+      <text x="275" y="130" text-anchor="middle" fill="rgba(255,255,255,.35)" font-size="9">shared Docker volume</text>
+      <!-- collector box -->
+      <rect x="380" y="60" width="155" height="120" rx="10" fill="#161616" stroke="rgba(255,107,53,.3)" stroke-width="1.5"/>
+      <text x="457" y="88" text-anchor="middle" fill="var(--accent,#ff6b35)" font-size="11" font-weight="700">collector</text>
+      <text x="457" y="104" text-anchor="middle" fill="rgba(255,255,255,.45)" font-size="9">FastAPI · port 8000</text>
+      <text x="457" y="119" text-anchor="middle" fill="rgba(255,255,255,.45)" font-size="9">watcher · parser · alerts</text>
+      <rect x="395" y="130" width="125" height="36" rx="6" fill="rgba(0,210,255,.07)" stroke="rgba(0,210,255,.2)" stroke-width="1"/>
+      <text x="457" y="150" text-anchor="middle" fill="#00d2ff" font-size="9" font-weight="700">SQLite (logs.db)</text>
+      <text x="457" y="162" text-anchor="middle" fill="rgba(255,255,255,.3)" font-size="8">logs · bad_lines · alerts</text>
+      <!-- dashboard box -->
+      <rect x="580" y="80" width="155" height="80" rx="10" fill="#161616" stroke="rgba(255,107,53,.3)" stroke-width="1.5"/>
+      <text x="657" y="108" text-anchor="middle" fill="var(--accent,#ff6b35)" font-size="11" font-weight="700">dashboard</text>
+      <text x="657" y="124" text-anchor="middle" fill="rgba(255,255,255,.45)" font-size="9">nginx · port 80</text>
+      <text x="657" y="140" text-anchor="middle" fill="rgba(255,255,255,.45)" font-size="9">Chart.js · vanilla JS</text>
+      <!-- arrows -->
+      <!-- app → volume -->
+      <line x1="170" y1="120" x2="210" y2="120" stroke="rgba(255,107,53,.5)" stroke-width="1.5" marker-end="url(#arr4)"/>
+      <text x="190" y="113" text-anchor="middle" fill="rgba(255,255,255,.3)" font-size="8">write</text>
+      <!-- volume → collector -->
+      <line x1="340" y1="120" x2="380" y2="120" stroke="rgba(0,210,255,.4)" stroke-width="1.5" marker-end="url(#arr4)"/>
+      <text x="360" y="113" text-anchor="middle" fill="rgba(255,255,255,.3)" font-size="8">tail-f</text>
+      <!-- collector → dashboard (REST API) -->
+      <line x1="535" y1="120" x2="580" y2="120" stroke="rgba(255,107,53,.4)" stroke-width="1.5" marker-end="url(#arr4)"/>
+      <text x="558" y="113" text-anchor="middle" fill="rgba(255,255,255,.3)" font-size="8">REST</text>
+      <!-- GitHub Actions label -->
+      <rect x="260" y="10" width="240" height="34" rx="8" fill="rgba(255,107,53,.07)" stroke="rgba(255,107,53,.2)" stroke-width="1"/>
+      <text x="380" y="28" text-anchor="middle" fill="rgba(255,107,53,.8)" font-size="10" font-weight="700">GitHub Actions CI/CD → EC2 deploy on push to main</text>
+      <!-- network label -->
+      <rect x="20" y="200" width="715" height="24" rx="6" fill="rgba(255,255,255,.025)" stroke="var(--border,rgba(255,255,255,0.07))" stroke-width="1"/>
+      <text x="377" y="216" text-anchor="middle" fill="rgba(255,255,255,.25)" font-size="9">logmonitor_net — all services on one internal Docker network</text>
+    </svg>
+  </div>
+
+  <!-- DESIGN DECISIONS -->
+  <p class="sec-label">— Design Decisions</p>
+  <h2 class="sec-title">Why These Choices?</h2>
+
+  <div class="design-grid">
+    <div class="design-card">
+      <div class="design-card-q">Why SQLite and not PostgreSQL?</div>
+      <div class="design-card-a">SQLite is zero-setup — the DB is a single file, no service to run, perfect for a single-node project. At this scale (thousands of log rows/day) it's fast enough. For production with multiple collector replicas, switch to PostgreSQL.</div>
+    </div>
+    <div class="design-card">
+      <div class="design-card-q">Why file tailing instead of a message queue?</div>
+      <div class="design-card-a">File tailing (<code>tail -f</code>) requires zero extra infrastructure — the log file already exists. A message queue (Kafka, Redis Pub/Sub) adds ops overhead. At scale, switch to <code>Fluent Bit</code> → Kafka for reliable, back-pressure-aware delivery.</div>
+    </div>
+    <div class="design-card">
+      <div class="design-card-q">What would change for production?</div>
+      <div class="design-card-a">Replace SQLite with PostgreSQL, add an index on <code>(timestamp, level)</code>. Replace the watcher with Fluent Bit or Logstash. Replace Chart.js with Grafana + Prometheus. Add authentication on the collector API. Use ECS or Kubernetes instead of a single EC2.</div>
+    </div>
+    <div class="design-card">
+      <div class="design-card-q">Why plain HTML/CSS for the dashboard?</div>
+      <div class="design-card-a">No build tooling needed — the dashboard is a few static files served by nginx. No npm install, no bundler, one Dockerfile line. The Chart.js CDN script is the only dependency. For a team project, React + Vite would be a better choice.</div>
+    </div>
+  </div>
+
+  <!-- README cost table -->
+  <p class="sec-label">— Cost Reference</p>
+  <h2 class="sec-title">AWS Cost Estimate</h2>
+
+  <div class="table-wrap" style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:80px">
+    <table class="cost-table">
+      <thead><tr><th>Resource</th><th>Spec</th><th>Cost (on-demand)</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>EC2 t2.micro</td><td>1 vCPU, 1 GB RAM</td><td>~$0.012/hr · ~$8.7/mo</td><td>Free tier eligible (750 hrs/month first year)</td></tr>
+        <tr><td>EBS gp3 volume</td><td>8 GB (default)</td><td>~$0.80/mo</td><td>Charged even when instance is stopped</td></tr>
+        <tr><td>Data transfer</td><td>first 100 GB/mo</td><td>Free</td><td>Outbound beyond 100 GB is $0.09/GB</td></tr>
+        <tr><td><strong>Safety tip</strong></td><td colspan="3">Set a <code>$10</code> billing alert in AWS Budgets. Stop the instance when not in use — compute cost stops, only the EBS volume continues.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- footer -->
+  <div class="proj-footer">
+    <a href="index.html" class="back-link">← Back to Portfolio</a>
+    <div class="nav-pills">
+      <a href="project-1.html">← Job Portal</a>
+      <a href="project-2.html">← Sales Forecast</a>
+    </div>
+  </div>
+
+</div><!-- /proj-body -->
+
+<script>
+/* ═══════════════════════════════════════
+   CURSOR GLOW — hue-cycling, lerp 0.06
+═══════════════════════════════════════ */
+(function(){
+  const g = document.getElementById('cursor-glow');
+  if(!g) return;
+  let gx=innerWidth/2, gy=innerHeight/2, tx=gx, ty=gy;
+  let hue = 20; // start near orange
+  const HUE_SPEED = 0.04;
+  document.addEventListener('mousemove', e=>{ tx=e.clientX; ty=e.clientY; });
+  (function frame(){
+    gx+=(tx-gx)*.06; gy+=(ty-gy)*.06;
+    hue=(hue+HUE_SPEED)%360;
+    g.style.transform=`translate(${gx-350}px,${gy-350}px)`;
+    g.style.setProperty('--glow-color',`hsla(${hue},100%,62%,0.26)`);
+    requestAnimationFrame(frame);
+  })();
+})();
+
+/* custom cursor */
+(function(){
+  const dot  = document.querySelector('.cursor-dot');
+  const ring = document.querySelector('.cursor-ring');
+  if(!dot||!ring) return;
+  let mx=innerWidth/2, my=innerHeight/2, rx=mx, ry=my;
+  document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;});
+  document.addEventListener('mouseleave',()=>{dot.style.opacity='0';ring.style.opacity='0';});
+  document.addEventListener('mouseenter',()=>{dot.style.opacity='1';ring.style.opacity='1';});
+  document.querySelectorAll('a,button,.ep-card,.feat-card').forEach(el=>{
+    el.addEventListener('mouseenter',()=>ring.classList.add('hovered'));
+    el.addEventListener('mouseleave',()=>ring.classList.remove('hovered'));
+  });
+  (function tick(){
+    dot.style.left=mx+'px'; dot.style.top=my+'px';
+    rx+=(mx-rx)*.12; ry+=(my-ry)*.12;
+    ring.style.left=rx+'px'; ring.style.top=ry+'px';
+    requestAnimationFrame(tick);
+  })();
+})();
+
+/* toast */
+function toast3(msg,type='tok'){
+  const el=document.getElementById('toast3');
+  el.textContent=(type==='tok'?'✓ ':type==='terr'?'✖ ':'ℹ ')+msg;
+  el.className='show '+type;
+  clearTimeout(toast3._t);
+  toast3._t=setTimeout(()=>{el.className='';},3000);
+}
+function delay(ms){return new Promise(r=>setTimeout(r,ms));}
+function esc(s){const d=document.createElement('div');d.textContent=String(s||'');return d.innerHTML;}
+
+/* ══════════════════════════════════════
+   LOG STREAM SIMULATOR
+══════════════════════════════════════ */
+const ENDPOINTS_DATA = [
+  { path:'/api/users',   method:'GET',  statusFn:()=>200,
+    timeFn:()=>Math.round(5+Math.random()*15) },
+  { path:'/api/orders',  method:'GET',  statusFn:()=>200,
+    timeFn:()=>Math.round(200+Math.random()*1300) },
+  { path:'/api/payment', method:'POST', statusFn:()=>Math.random()<.2?500:200,
+    timeFn:()=>Math.round(50+Math.random()*100) },
+  { path:'/api/search',  method:'GET',  statusFn:()=>Math.random()<.3?400:200,
+    timeFn:()=>Math.round(10+Math.random()*50), paramFn:()=>Math.random()<.3?'':' q=shoes' },
+  { path:'/api/health',  method:'GET',  statusFn:()=>200,
+    timeFn:()=>Math.round(1+Math.random()*4) },
+];
+
+function makeLogLine(forced500){
+  const ep = forced500
+    ? ENDPOINTS_DATA[2]
+    : ENDPOINTS_DATA[Math.floor(Math.random()*ENDPOINTS_DATA.length)];
+  const status  = forced500 ? 500 : ep.statusFn();
+  const ms      = ep.timeFn();
+  const level   = status>=500?'error':status>=400?'warn':'info';
+  const reqId   = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
+    const r=Math.random()*16|0; return(c==='x'?r:(r&3|8)).toString(16);
+  });
+  return { timestamp:new Date().toISOString(), level, message:'HTTP request',
+    endpoint:ep.path, method:ep.method, status_code:status,
+    response_time_ms:ms, request_id:reqId };
+}
+
+let streamTimer = null;
+
+function appendLogLine(logObj){
+  const body = document.getElementById('log-body');
+  const div  = document.createElement('div');
+  div.className = 'log-line';
+  const ts   = logObj.timestamp.slice(11,23);
+  const lvl  = logObj.level;
+  const cls  = lvl==='error'?'ll-error':lvl==='warn'?'ll-warn':'ll-info';
+  const color= lvl==='error'?'var(--red)':lvl==='warn'?'var(--yellow)':'var(--green)';
+  const statusColor = logObj.status_code>=500?'var(--red)':logObj.status_code>=400?'var(--yellow)':'var(--green)';
+  div.innerHTML =
+    `<span class="log-ts">${ts}</span>` +
+    `<span class="log-level ${cls}">${lvl.toUpperCase()}</span>` +
+    `<span class="log-msg"><span style="color:var(--accent)">${logObj.method}</span> ${logObj.endpoint} → <span style="color:${statusColor}">${logObj.status_code}</span> <span style="color:var(--grey)">${logObj.response_time_ms}ms</span></span>` +
+    `<span class="log-meta">${logObj.request_id.slice(0,8)}</span>`;
+  body.appendChild(div);
+  if(body.children.length > 80) body.removeChild(body.firstChild);
+  body.scrollTop = body.scrollHeight;
+}
+
+document.getElementById('start-stream-btn').addEventListener('click', function(){
+  if(streamTimer) return;
+  document.getElementById('live-dot').style.background='var(--green)';
+  streamTimer = setInterval(()=>appendLogLine(makeLogLine(false)), 600);
+  toast3('Log stream started','tok');
+});
+
+document.getElementById('burst-btn').addEventListener('click', async function(){
+  toast3('Burst mode — firing 20 error requests!','terr');
+  for(let i=0;i<20;i++){
+    await delay(80);
+    appendLogLine(makeLogLine(true));
+  }
+});
+
+document.getElementById('stop-stream-btn').addEventListener('click', function(){
+  clearInterval(streamTimer); streamTimer=null;
+  document.getElementById('live-dot').style.background='var(--grey)';
+  toast3('Stream stopped','tinf');
+});
+
+document.getElementById('clear-log-btn').addEventListener('click', ()=>{
+  document.getElementById('log-body').innerHTML='';
+});
+
+/* seed a few initial lines */
+for(let i=0;i<6;i++) appendLogLine(makeLogLine(false));
+
+/* ══════════════════════════════════════
+   TRAFFIC GENERATOR SIMULATOR
+══════════════════════════════════════ */
+document.getElementById('rps-slider').addEventListener('input',function(){
+  document.getElementById('rps-val').textContent=this.value;
+});
+document.getElementById('dur-slider').addEventListener('input',function(){
+  document.getElementById('dur-val').textContent=this.value;
+});
+
+const EP_NAMES = ['/api/users','/api/orders','/api/payment','/api/search','/api/health'];
+
+function simulateTraffic(rps, duration, isBurst){
+  const total = isBurst ? 50 : rps * duration;
+  const progWrap = document.getElementById('prog-wrap');
+  const progFill = document.getElementById('prog-fill');
+  const progPct  = document.getElementById('prog-pct');
+  const progStage= document.getElementById('prog-stage');
+  progWrap.style.display='block'; progFill.style.width='0%';
+
+  document.getElementById('s-total').textContent='…';
+  document.getElementById('s-success').textContent='…';
+  document.getElementById('s-fail').textContent='…';
+  document.getElementById('s-rps').textContent='…';
+  document.getElementById('endpoint-breakdown').style.display='none';
+
+  let sent=0, success=0, failure=0;
+  const epCounts={};
+  EP_NAMES.forEach(e=>{ epCounts[e]={ok:0,err:0}; });
+
+  const intervalMs = isBurst ? 40 : 1000/rps;
+  const timer = setInterval(()=>{
+    if(sent>=total){ clearInterval(timer); showSummary(); return; }
+    const ep = isBurst ? ENDPOINTS_DATA[2] : ENDPOINTS_DATA[Math.floor(Math.random()*ENDPOINTS_DATA.length)];
+    const status = isBurst ? 500 : ep.statusFn();
+    if(status<400){ success++; epCounts[ep.path].ok++; }
+    else { failure++; epCounts[ep.path].err++; }
+    sent++;
+    const pct=Math.round((sent/total)*100);
+    progFill.style.width=pct+'%';
+    progPct.textContent=pct+'%';
+    progStage.textContent=isBurst?`Burst: sending failing requests… (${sent}/${total})`:`Sending requests… (${sent}/${total})`;
+    document.getElementById('s-total').textContent=sent;
+    document.getElementById('s-success').textContent=success;
+    document.getElementById('s-fail').textContent=failure;
+  }, intervalMs);
+
+  function showSummary(){
+    progStage.textContent='Done!';
+    const actualRps = isBurst ? total/((total*intervalMs/1000).toFixed(1)) : rps;
+    document.getElementById('s-rps').textContent = isBurst ? '~'+Math.round(1000/intervalMs) : rps;
+    // breakdown
+    const bdEl = document.getElementById('breakdown-rows');
+    bdEl.innerHTML = EP_NAMES.map(ep=>{
+      const c = epCounts[ep];
+      const t = c.ok+c.err;
+      if(!t) return '';
+      const pct = Math.round((c.ok/t)*100);
+      const color = pct>80?'var(--green)':pct>50?'var(--yellow)':'var(--red)';
+      return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:.78rem">
+        <span style="font-family:'Courier New',monospace;color:var(--accent);min-width:160px">${ep}</span>
+        <div style="flex:1;background:rgba(255,255,255,.05);border-radius:3px;height:5px;overflow:hidden">
+          <div style="width:${pct}%;height:100%;background:${color};border-radius:3px"></div>
+        </div>
+        <span style="color:var(--grey);min-width:80px;text-align:right">${c.ok}ok / ${c.err}err</span>
+      </div>`;
+    }).join('');
+    document.getElementById('endpoint-breakdown').style.display='block';
+    toast3(`Traffic done: ${sent} requests, ${failure} failures`, failure>sent*.3?'terr':'tok');
+  }
+}
+
+document.getElementById('run-traffic-btn').addEventListener('click',function(){
+  const rps = parseInt(document.getElementById('rps-slider').value);
+  const dur = parseInt(document.getElementById('dur-slider').value);
+  simulateTraffic(rps, dur, false);
+  toast3(`Running ${rps} req/s for ${dur}s…`,'tinf');
+});
+document.getElementById('run-burst-btn').addEventListener('click',function(){
+  simulateTraffic(10, 5, true);
+  toast3('Burst mode: 50 failing requests!','terr');
+});
+document.getElementById('reset-traffic-btn').addEventListener('click',function(){
+  document.getElementById('prog-wrap').style.display='none';
+  document.getElementById('endpoint-breakdown').style.display='none';
+  ['s-total','s-success','s-fail','s-rps'].forEach(id=>{
+    document.getElementById(id).textContent='—';
+  });
+});
+
+/* ══════════════════════════════════════
+   TEST RUNNER
+══════════════════════════════════════ */
+const TESTS = {
+  endpoints: {
+    out:'to-endpoints', sum:'tsum-endpoints',
+    tests:[
+      {name:'GET /api/users → 200 with users array',                  pass:true, ms:42 },
+      {name:'GET /api/users → response has id, name, email fields',   pass:true, ms:38 },
+      {name:'GET /api/orders → 200 OK',                               pass:true, ms:960},
+      {name:'GET /api/orders → response_time_ms recorded in log',     pass:true, ms:12 },
+      {name:'POST /api/payment → returns 200 or 500',                 pass:true, ms:55 },
+      {name:'POST /api/payment → 500 rate is roughly 20% (±10%)',     pass:true, ms:280},
+      {name:'GET /api/search?q=shoes → 200 with results',             pass:true, ms:18 },
+      {name:'GET /api/search (no q param) → 400 Bad Request',         pass:true, ms:12 },
+      {name:'GET /api/search (no q param) → body has "q is required"',pass:true, ms:11 },
+      {name:'GET /api/health → 200 { status: "ok" }',                 pass:true, ms:4  },
+      {name:'GET /api/health → response time under 50ms',             pass:true, ms:4  },
+    ]
+  },
+  logfmt: {
+    out:'to-logfmt', sum:'tsum-logfmt',
+    tests:[
+      {name:'Each log line is valid JSON (JSON.parse does not throw)', pass:true, ms:3  },
+      {name:'timestamp field is present and ISO 8601 format',         pass:true, ms:2  },
+      {name:'level is one of info | warn | error',                    pass:true, ms:1  },
+      {name:'2xx responses produce level=info',                       pass:true, ms:3  },
+      {name:'4xx responses produce level=warn',                       pass:true, ms:3  },
+      {name:'5xx responses produce level=error',                      pass:true, ms:3  },
+      {name:'request_id is a valid UUIDv4',                           pass:true, ms:2  },
+      {name:'response_time_ms is a non-negative integer',             pass:true, ms:1  },
+      {name:'error entries include stack field',                      pass:true, ms:4  },
+      {name:'no log line contains password or sensitive fields',      pass:true, ms:2  },
+    ]
+  }
+};
+
+async function runSuite(key){
+  const s = TESTS[key];
+  const outEl = document.getElementById(s.out);
+  const sumEl = document.getElementById(s.sum);
+  if(!outEl) return {passed:0,failed:0};
+  outEl.innerHTML=''; sumEl.innerHTML='';
+  let passed=0, failed=0;
+  for(const t of s.tests){
+    await delay(50+Math.random()*70);
+    const row = document.createElement('div');
+    row.className='test-row';
+    const cls = t.pass?'t-pass':'t-fail';
+    row.innerHTML=`<span class="t-icon ${cls}">${t.pass?'✓':'✗'}</span><span class="t-name">${esc(t.name)}</span><span class="t-ms">${t.ms}ms</span>`;
+    outEl.appendChild(row);
+    t.pass?passed++:failed++;
+  }
+  const ms=s.tests.reduce((a,t)=>a+t.ms,0);
+  sumEl.innerHTML=`<span class="ts-pass">✓ ${passed} passed</span>${failed?`<span style="color:var(--red);font-weight:700">✗ ${failed} failed</span>`:''}<span class="ts-total">${passed+failed} tests</span><span class="ts-time">${ms}ms</span>`;
+  return {passed,failed};
+}
+
+document.getElementById('run-tests-btn').addEventListener('click', async function(){
+  this.disabled=true;
+  document.getElementById('test-info').textContent='collecting…';
+  await delay(300);
+  let totalPass=0,totalFail=0;
+  for(const key of Object.keys(TESTS)){
+    document.getElementById('test-info').textContent=`running ${key}…`;
+    const {passed,failed}=await runSuite(key);
+    totalPass+=passed; totalFail+=failed;
+  }
+  document.getElementById('test-info').textContent=`${totalPass} passed · ${totalFail} failed`;
+  this.disabled=false;
+  toast3(`${totalPass}/${totalPass+totalFail} tests passed`,totalFail===0?'tok':'terr');
+});
+
+/* ══════════════════════════════════════
+   PART 2 — COLLECTOR API DEMO
+══════════════════════════════════════ */
+
+/* shared log store — fed by the Part 1 log stream */
+const logStore = [];   // array of log objects (newest first after pushes)
+const MAX_STORE = 500;
+
+/* hook into Part 1 makeLogLine to also push to store */
+const _origAppendLogLine = appendLogLine;
+window.appendLogLine = function(logObj){
+  logStore.unshift(logObj);
+  if(logStore.length > MAX_STORE) logStore.pop();
+  _origAppendLogLine(logObj);
+};
+// also store the seeded lines
+document.querySelectorAll('#log-body .log-line').forEach(()=>{
+  logStore.push(makeLogLine(false));
+});
+
+/* ── P2 tab switching ── */
+document.querySelectorAll('.api-demo-tab').forEach(tab=>{
+  tab.addEventListener('click', function(){
+    document.querySelectorAll('.api-demo-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.api-demo-pane').forEach(p=>p.classList.remove('active'));
+    this.classList.add('active');
+    const pane = document.getElementById('p2-tab-'+this.dataset.p2tab);
+    if(pane) pane.classList.add('active');
+  });
+});
+
+/* ── GET /api/logs ── */
+function renderLogs(items, total, page, pageSize){
+  const wrap = document.getElementById('logs-result-wrap');
+  if(!items.length){
+    wrap.innerHTML='<div style="text-align:center;color:var(--grey);padding:24px;font-size:.82rem">No logs match the current filters.</div>';
+    document.getElementById('logs-pg-row').innerHTML='';
+    return;
+  }
+  wrap.innerHTML = items.map(l=>{
+    const ts  = l.timestamp.slice(11,23);
+    const lvl = l.level;
+    const cls = lvl==='error'?'ll-error':lvl==='warn'?'ll-warn':'ll-info';
+    const sc  = l.status_code;
+    const scc = sc>=500?'var(--red)':sc>=400?'var(--yellow)':'var(--green)';
+    return `<div class="log-result-row">
+      <span class="lr-ts">${ts}</span>
+      <span class="lr-lvl ${cls}">${lvl.toUpperCase()}</span>
+      <span class="lr-ep">${l.endpoint}</span>
+      <span class="lr-st" style="color:${scc}">${sc}</span>
+      <span class="lr-ms">${l.response_time_ms}ms</span>
+      <span class="lr-id">${l.request_id.slice(0,8)}</span>
+    </div>`;
+  }).join('');
+
+  const pgRow = document.getElementById('logs-pg-row');
+  const pages = Math.ceil(total/pageSize)||1;
+  pgRow.innerHTML='';
+  for(let i=1;i<=Math.min(pages,5);i++){
+    const btn=document.createElement('button');
+    btn.className='pg-btn'+(i===page?' active':'');
+    btn.textContent=i;
+    btn.addEventListener('click',()=>fetchLogs(i));
+    pgRow.appendChild(btn);
+  }
+  const info=document.createElement('span');
+  info.className='pg-info';
+  info.textContent=`${total} total · page ${page}/${pages}`;
+  pgRow.appendChild(info);
+}
+
+function fetchLogs(page=1){
+  const level    = document.getElementById('f-level').value;
+  const endpoint = document.getElementById('f-endpoint').value;
+  const search   = document.getElementById('f-search').value.toLowerCase();
+  const pageSize = 10;
+
+  let filtered = [...logStore];
+  if(level)    filtered = filtered.filter(l=>l.level===level);
+  if(endpoint) filtered = filtered.filter(l=>l.endpoint===endpoint);
+  if(search)   filtered = filtered.filter(l=>l.message.toLowerCase().includes(search));
+
+  const total = filtered.length;
+  const items = filtered.slice((page-1)*pageSize, page*pageSize);
+  renderLogs(items, total, page, pageSize);
+  toast3(`${total} logs returned`,'tinf');
+}
+
+document.getElementById('fetch-logs-btn').addEventListener('click',()=>fetchLogs(1));
+
+/* ── Stats Summary ── */
+function fetchSummary(){
+  const all = logStore;
+  const info  = all.filter(l=>l.level==='info').length;
+  const warn  = all.filter(l=>l.level==='warn').length;
+  const error = all.filter(l=>l.level==='error').length;
+  const total = all.length;
+  const rate  = total ? ((error/total)*100).toFixed(1)+'%' : '0%';
+  const avgMs = total ? Math.round(all.reduce((s,l)=>s+l.response_time_ms,0)/total)+'ms' : '—';
+  document.getElementById('ss-total').textContent = total||'—';
+  document.getElementById('ss-info').textContent  = info||'—';
+  document.getElementById('ss-warn').textContent  = warn||'—';
+  document.getElementById('ss-error').textContent = error||'—';
+  document.getElementById('ss-rate').textContent  = rate;
+  document.getElementById('ss-avg').textContent   = avgMs;
+  toast3('Stats refreshed','tok');
+}
+document.getElementById('fetch-summary-btn').addEventListener('click', fetchSummary);
+
+/* ── Errors per hour ── */
+function fetchEph(){
+  /* bucket last 24h of logs by hour */
+  const now = Date.now();
+  const buckets = Array.from({length:24},(_,i)=>({h:i,count:0}));
+  logStore.forEach(l=>{
+    if(l.level!=='error') return;
+    const ageMs = now - new Date(l.timestamp).getTime();
+    const hAgo  = Math.floor(ageMs/3600000);
+    if(hAgo<24) buckets[23-hAgo].count++;
+  });
+  /* add some synthetic spread so the chart looks realistic */
+  if(logStore.length < 10){
+    [3,5,2,8,4,1,6,3,0,2,4,7,5,3,1,2,4,6,8,5,3,2,1,4].forEach((v,i)=>{ buckets[i].count+=v; });
+  }
+  const max = Math.max(...buckets.map(b=>b.count), 1);
+  const svg = document.getElementById('eph-svg');
+  const W=600, H=100, padB=20, barW=22;
+  const existingRects = svg.querySelectorAll('rect');
+  existingRects.forEach(r=>r.remove());
+  buckets.forEach((b,i)=>{
+    const h = Math.round(((b.count/max)*(H-padB-10)));
+    const x = i*(W/24)+2;
+    const y = H-padB-h;
+    const rect=document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rect.setAttribute('x',x); rect.setAttribute('y',y);
+    rect.setAttribute('width',barW); rect.setAttribute('height',h||2);
+    rect.setAttribute('rx','2');
+    rect.setAttribute('fill', b.count>5?'rgba(248,113,113,.75)':'rgba(255,107,53,.45)');
+    svg.appendChild(rect);
+  });
+  toast3('Error-per-hour chart updated','tinf');
+}
+document.getElementById('fetch-eph-btn').addEventListener('click', fetchEph);
+
+/* ── Slowest endpoints ── */
+function fetchSlowest(){
+  const epMap={};
+  logStore.forEach(l=>{
+    if(!epMap[l.endpoint]) epMap[l.endpoint]={sum:0,count:0,vals:[]};
+    epMap[l.endpoint].sum+=l.response_time_ms;
+    epMap[l.endpoint].count++;
+    epMap[l.endpoint].vals.push(l.response_time_ms);
+  });
+  /* synthetic baseline if store is thin */
+  const defaults={'/api/orders':{avg:742,p95:1420,count:120},'/api/payment':{avg:88,p95:142,count:95},'/api/search':{avg:28,p95:52,count:88},'/api/users':{avg:12,p95:19,count:140},'/api/health':{avg:3,p95:5,count:200}};
+  let rows = Object.entries(epMap).map(([ep,d])=>{
+    const avg=Math.round(d.sum/d.count);
+    const sorted=d.vals.sort((a,b)=>a-b);
+    const p95=sorted[Math.floor(sorted.length*.95)]||avg;
+    return {ep,avg,p95,count:d.count};
+  });
+  if(!rows.length){ rows=Object.entries(defaults).map(([ep,d])=>({ep,avg:d.avg,p95:d.p95,count:d.count})); }
+  rows.sort((a,b)=>b.avg-a.avg);
+  const maxAvg=Math.max(...rows.map(r=>r.avg),1);
+  const tbody=document.getElementById('slowest-tbody');
+  tbody.innerHTML=rows.slice(0,5).map((r,i)=>`
+    <tr>
+      <td style="color:var(--grey)">${i+1}</td>
+      <td><code style="color:var(--cyan);font-size:.78rem">${r.ep}</code></td>
+      <td>
+        <div class="slow-bar">
+          <span style="font-weight:700;color:${r.avg>500?'var(--red)':r.avg>100?'var(--yellow)':'var(--green)'};">${r.avg}ms</span>
+          <div class="slow-bar-track"><div class="slow-bar-fill" style="width:${Math.round((r.avg/maxAvg)*100)}%"></div></div>
+        </div>
+      </td>
+      <td><span class="p95-badge">${r.p95}ms</span></td>
+      <td style="color:var(--grey)">${r.count}</td>
+    </tr>`).join('');
+  toast3('Slowest endpoints loaded','tok');
+}
+document.getElementById('fetch-slowest-btn').addEventListener('click', fetchSlowest);
+
+/* ── P2 TEST RUNNER ── */
+const P2_TESTS = {
+  parser: {
+    out:'to2-parser', sum:'tsum2-parser',
+    tests:[
+      {name:'parse_line: valid JSON log → ok=True, LogCreate returned',         pass:true, ms:3},
+      {name:'parse_line: broken JSON → ok=False, reason contains "Invalid JSON"',pass:true, ms:1},
+      {name:'parse_line: missing "endpoint" field → ok=False with field name',   pass:true, ms:1},
+      {name:'parse_line: missing "request_id" → ok=False with field name',       pass:true, ms:1},
+      {name:'parse_line: unknown level value → ok=False',                        pass:true, ms:1},
+      {name:'parse_line: empty string → ok=False, reason "empty line"',          pass:true, ms:1},
+      {name:'parse_line: valid error entry with stack field → parsed correctly',  pass:true, ms:2},
+      {name:'parse_line: never raises an exception regardless of input',          pass:true, ms:4},
+    ]
+  },
+  dedup: {
+    out:'to2-dedup', sum:'tsum2-dedup',
+    tests:[
+      {name:'inserting same request_id+timestamp twice → only 1 row in DB',      pass:true, ms:14},
+      {name:'different request_id, same timestamp → both rows inserted',          pass:true, ms:11},
+      {name:'same request_id, different timestamp → both rows inserted',          pass:true, ms:9},
+      {name:'flush_batch: duplicate skipped, good entry still committed',         pass:true, ms:12},
+    ]
+  },
+  api: {
+    out:'to2-api', sum:'tsum2-api',
+    tests:[
+      {name:'GET /api/logs → 200, returns total and items array',                 pass:true, ms:28},
+      {name:'GET /api/logs?level=error → only error rows returned',               pass:true, ms:22},
+      {name:'GET /api/logs?endpoint=/api/orders → filtered by endpoint',          pass:true, ms:19},
+      {name:'GET /api/logs?search=payment → message search works',                pass:true, ms:18},
+      {name:'GET /api/logs?page=2&page_size=5 → correct slice returned',          pass:true, ms:20},
+      {name:'GET /api/stats/summary → all required fields present',               pass:true, ms:15},
+      {name:'GET /api/stats/summary error_rate is correct percentage',            pass:true, ms:12},
+      {name:'GET /api/stats/errors-per-hour → 24-item array',                     pass:true, ms:14},
+      {name:'GET /api/stats/slowest-endpoints → list ordered by avg desc',        pass:true, ms:16},
+      {name:'GET /api/alerts → 200, returns list (may be empty)',                 pass:true, ms:10},
+      {name:'GET /health → 200, {status:"ok", db:"connected"}',                  pass:true, ms:6},
+      {name:'Bad log line goes to bad_lines table, does not affect /api/logs',    pass:true, ms:18},
+    ]
+  }
+};
+
+async function runP2Suite(key){
+  const s = P2_TESTS[key];
+  const outEl=document.getElementById(s.out);
+  const sumEl=document.getElementById(s.sum);
+  if(!outEl) return {passed:0,failed:0};
+  outEl.innerHTML=''; sumEl.innerHTML='';
+  let passed=0,failed=0;
+  for(const t of s.tests){
+    await delay(45+Math.random()*65);
+    const row=document.createElement('div');
+    row.className='test-row2';
+    const cls=t.pass?'t2-pass':'t2-fail';
+    row.innerHTML=`<span class="${cls}">${t.pass?'✓':'✗'}</span><span class="t2-name">${esc(t.name)}</span><span class="t2-ms">${t.ms}ms</span>`;
+    outEl.appendChild(row);
+    t.pass?passed++:failed++;
+  }
+  const ms=s.tests.reduce((a,t)=>a+t.ms,0);
+  sumEl.innerHTML=`<span style="color:var(--green);font-weight:700">✓ ${passed} passed</span>${failed?`<span style="color:var(--red);font-weight:700"> ✗ ${failed} failed</span>`:''}<span style="color:var(--grey)"> · ${passed+failed} tests</span><span style="color:var(--grey);margin-left:auto">${ms}ms</span>`;
+  return {passed,failed};
+}
+
+document.getElementById('run-p2-tests-btn').addEventListener('click', async function(){
+  this.disabled=true;
+  document.getElementById('p2-test-info').textContent='collecting…';
+  await delay(300);
+  let total=0,fail=0;
+  for(const key of Object.keys(P2_TESTS)){
+    document.getElementById('p2-test-info').textContent=`running ${key}…`;
+    const {passed,failed}=await runP2Suite(key);
+    total+=passed+failed; fail+=failed;
+  }
+  document.getElementById('p2-test-info').textContent=`${total-fail} passed · ${fail} failed`;
+  this.disabled=false;
+  toast3(`${total-fail}/${total} tests passed`,fail===0?'tok':'terr');
+});
+
+/* ══════════════════════════════════════════════════
+   PART 3 — ALERT SYSTEM & DASHBOARD MOCK
+══════════════════════════════════════════════════ */
+
+/* ── Alert store ── */
+const alertsStore = [];   // { id, rule_name, message, triggered_at, status }
+let alertIdSeq = 1;
+
+const ALERT_RULES = [
+  { name:'error_spike',    threshold:10,   metric:'error_count',     label:'Error Spike' },
+  { name:'slow_response',  threshold:1000, metric:'avg_response_ms', label:'Slow Response' },
+  { name:'high_error_rate',threshold:30,   metric:'error_rate_pct',  label:'High Error Rate' },
+];
+
+function computeMetric(metric){
+  const fiveMinAgo = Date.now() - 5*60*1000;
+  const recent = logStore.filter(l => new Date(l.timestamp).getTime() > fiveMinAgo);
+  if(!recent.length) return 0;
+  if(metric === 'error_count')    return recent.filter(l=>l.level==='error').length;
+  if(metric === 'avg_response_ms') return recent.reduce((s,l)=>s+l.response_time_ms,0)/recent.length;
+  if(metric === 'error_rate_pct') return (recent.filter(l=>l.level==='error').length/recent.length)*100;
+  return 0;
+}
+
+function appendAlertLog(msg, type='FIRED'){
+  const body = document.getElementById('als-body');
+  if(!body) return;
+  if(body.children.length === 1 && body.firstChild.tagName !== 'DIV'){
+    body.innerHTML = '';
+  }
+  const div = document.createElement('div');
+  const ts  = new Date().toISOString().slice(0,19).replace('T',' ');
+  const color = type==='FIRED'?'var(--red)':type==='RESOLVED'?'var(--green)':'var(--yellow)';
+  div.innerHTML = `<span style="color:rgba(255,255,255,.3)">${ts}</span> <span style="color:${color};font-weight:700">[${type}]</span> <span style="color:rgba(255,255,255,.75)">${msg}</span>`;
+  body.prepend(div);
+}
+
+function renderAlertBanners(){
+  const active = alertsStore.filter(a=>a.status==='active');
+
+  /* main alert container (outside dashboard) */
+  const container = document.getElementById('active-alerts-container');
+  if(container){
+    container.innerHTML = active.length ? active.map(a=>`
+      <div class="alert-banner active">
+        <div class="alert-banner-msg">🔴 <strong>${a.rule_label}:</strong> ${a.message}</div>
+        <button class="alert-ack-btn" onclick="ackAlertSim(${a.id})">Acknowledge</button>
+      </div>`).join('') : '';
+  }
+
+  /* dashboard banner slot */
+  const dashSlot = document.getElementById('dash-alert-slot');
+  if(dashSlot){
+    dashSlot.innerHTML = active.length ? `
+      <div class="alert-banner active" style="margin-bottom:14px">
+        <div class="alert-banner-msg">🔴 ${active[0].message}</div>
+        <button class="alert-ack-btn" onclick="ackAlertSim(${active[0].id})">Acknowledge</button>
+      </div>` : '';
+  }
+}
+
+window.ackAlertSim = function(id){
+  const a = alertsStore.find(a=>a.id===id);
+  if(!a) return;
+  a.status = 'acknowledged';
+  appendAlertLog(`Alert acknowledged: ${a.message}`, 'ACK');
+  renderAlertBanners();
+  toast3('Alert acknowledged','tok');
+  updateDashboard();
+};
+
+function checkAlerts(){
+  for(const rule of ALERT_RULES){
+    const value     = computeMetric(rule.metric);
+    const triggered = value > rule.threshold;
+    const existing  = alertsStore.find(a=>a.rule_name===rule.name && a.status==='active');
+
+    if(triggered && !existing){
+      const msg = `${rule.label}: ${value.toFixed(1)} > ${rule.threshold}`;
+      const alert = { id:alertIdSeq++, rule_name:rule.name, rule_label:rule.label, message:msg,
+                      triggered_at:new Date().toISOString(), status:'active', value };
+      alertsStore.unshift(alert);
+      appendAlertLog(msg, 'FIRED');
+      toast3(`ALERT: ${msg}`, 'terr');
+    } else if(!triggered && existing){
+      existing.status = 'resolved';
+      appendAlertLog(`Resolved: ${rule.label}`, 'RESOLVED');
+      toast3(`Alert resolved: ${rule.label}`, 'tok');
+    }
+  }
+  renderAlertBanners();
+}
+
+document.getElementById('trigger-alert-btn').addEventListener('click', async function(){
+  /* inject 25 error logs into the store to trigger error_spike and high_error_rate */
+  for(let i=0;i<25;i++){
+    const l = makeLogLine(true); /* forced 500 */
+    logStore.unshift(l);
+    if(logStore.length>500) logStore.pop();
+  }
+  checkAlerts();
+  toast3('Burst injected — 25 error logs added','terr');
+});
+
+document.getElementById('resolve-alert-btn').addEventListener('click', function(){
+  alertsStore.forEach(a=>{ if(a.status==='active') a.status='resolved'; });
+  renderAlertBanners();
+  appendAlertLog('All alerts manually resolved', 'RESOLVED');
+  toast3('All alerts resolved','tok');
+  updateDashboard();
+});
+
+document.getElementById('clear-alerts-btn').addEventListener('click', function(){
+  alertsStore.length = 0;
+  document.getElementById('als-body').innerHTML = '<span style="color:var(--grey)">Log cleared.</span>';
+  renderAlertBanners();
+  updateDashboard();
+});
+
+/* ── Dashboard ── */
+let dashAutoTimer = null;
+let dashLogOffset = 0;
+
+function updateDashboard(){
+  const all = logStore;
+  const errors = all.filter(l=>l.level==='error');
+  const warns  = all.filter(l=>l.level==='warn');
+  const infos  = all.filter(l=>l.level==='info');
+  const total  = all.length;
+  const erate  = total ? ((errors.length/total)*100).toFixed(1)+'%' : '0%';
+  const avg    = total ? Math.round(all.reduce((s,l)=>s+l.response_time_ms,0)/total)+'ms' : '—';
+  const activeCount = alertsStore.filter(a=>a.status==='active').length;
+
+  /* KPI cards */
+  const dk=document.getElementById.bind(document);
+  if(dk('dk-total'))  dk('dk-total').textContent  = total||'—';
+  if(dk('dk-erate'))  dk('dk-erate').textContent  = erate;
+  if(dk('dk-avg'))    dk('dk-avg').textContent    = avg;
+  if(dk('dk-alerts')) dk('dk-alerts').textContent = activeCount||'0';
+  if(dk('dk-alerts-sub')) dk('dk-alerts-sub').textContent = activeCount ? `${activeCount} active` : 'none';
+  if(activeCount > 0 && dk('dk-alerts')) dk('dk-alerts').style.color='var(--red)';
+  else if(dk('dk-alerts')) dk('dk-alerts').style.color='var(--green)';
+
+  /* Donut */
+  const C = 2*Math.PI*50; /* circumference ≈ 314 */
+  const ep = C*(infos.length /total||0);
+  const wp = C*(warns.length /total||0);
+  const rp = C*(errors.length/total||0);
+  const infoOff  = C/4; /* -90° offset = C*0.25 */
+  const warnOff  = -(ep - C/4);
+  const errorOff = -(ep + wp - C/4);
+  ['info','warn','error'].forEach((lvl,i)=>{
+    const seg = dk(`dc-${lvl}-seg`);
+    if(!seg) return;
+    const dash = [ep,wp,rp][i];
+    const off  = [infoOff,warnOff,errorOff][i];
+    seg.setAttribute('stroke-dasharray', `${dash} ${C-dash}`);
+    seg.setAttribute('stroke-dashoffset', off);
+  });
+  if(dk('dc-total-txt')) dk('dc-total-txt').textContent = total||'—';
+
+  /* Errors per hour bars */
+  const svgEph = document.getElementById('dc-eph');
+  if(svgEph){
+    svgEph.querySelectorAll('rect').forEach(r=>r.remove());
+    const now2=Date.now();
+    const bkts=Array.from({length:24},()=>0);
+    all.filter(l=>l.level==='error').forEach(l=>{
+      const h=Math.floor((now2-new Date(l.timestamp).getTime())/3600000);
+      if(h<24) bkts[23-h]++;
+    });
+    if(all.length<5){[2,0,1,4,3,0,5,2,1,0,2,4,6,8,3,1,0,2,5,7,4,2,1,3].forEach((v,i)=>bkts[i]+=v);}
+    const mx=Math.max(...bkts,1);
+    bkts.forEach((v,i)=>{
+      const h=Math.round((v/mx)*58);
+      const r=document.createElementNS('http://www.w3.org/2000/svg','rect');
+      r.setAttribute('x',  i*(400/24)+1);
+      r.setAttribute('y',  60-h);
+      r.setAttribute('width',  14);
+      r.setAttribute('height', h||2);
+      r.setAttribute('rx','2');
+      r.setAttribute('fill', v>5?'rgba(248,113,113,.75)':'rgba(255,107,53,.45)');
+      svgEph.appendChild(r);
+    });
+  }
+
+  /* Slowest endpoints horizontal bars */
+  const slowWrap = document.getElementById('dc-slow-bars');
+  if(slowWrap){
+    const epMs={};
+    all.forEach(l=>{
+      if(!epMs[l.endpoint]) epMs[l.endpoint]={sum:0,n:0};
+      epMs[l.endpoint].sum+=l.response_time_ms;
+      epMs[l.endpoint].n++;
+    });
+    const defaults=[{e:'/api/orders',ms:742},{e:'/api/payment',ms:88},{e:'/api/search',ms:28},{e:'/api/users',ms:12},{e:'/api/health',ms:3}];
+    let rows = Object.entries(epMs).map(([e,d])=>({e,ms:Math.round(d.sum/d.n)}));
+    if(!rows.length) rows=defaults;
+    rows.sort((a,b)=>b.ms-a.ms);
+    const maxMs=rows[0].ms||1;
+    slowWrap.innerHTML = rows.slice(0,5).map(r=>{
+      const pct=Math.round((r.ms/maxMs)*100);
+      const col=r.ms>500?'var(--red)':r.ms>100?'var(--yellow)':'var(--green)';
+      return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:.76rem">
+        <span style="font-family:'Courier New',monospace;color:var(--cyan);min-width:140px;font-size:.72rem">${r.e}</span>
+        <div style="flex:1;background:rgba(255,255,255,.05);border-radius:3px;height:6px;overflow:hidden">
+          <div style="width:${pct}%;height:100%;background:${col};border-radius:3px;transition:width .6s var(--ease)"></div>
+        </div>
+        <span style="color:${col};font-weight:700;min-width:48px;text-align:right">${r.ms}ms</span>
+      </div>`;
+    }).join('');
+  }
+
+  /* logs table */
+  renderDashTable();
+  renderAlertBanners();
+  checkAlerts();
+
+  if(dk('dash-refresh-label')) dk('dash-refresh-label').textContent = 'Last refresh: '+new Date().toLocaleTimeString();
+}
+
+function renderDashTable(){
+  const level  = document.getElementById('dlt-level')?.value||'';
+  const ep     = document.getElementById('dlt-ep')?.value||'';
+  const search = (document.getElementById('dlt-search')?.value||'').toLowerCase();
+  let items = logStore.filter(l=>{
+    if(level && l.level!==level) return false;
+    if(ep && l.endpoint!==ep) return false;
+    if(search && !l.message.toLowerCase().includes(search) && !l.endpoint.includes(search)) return false;
+    return true;
+  });
+  const PAGE=50+dashLogOffset;
+  const tbody=document.getElementById('dlt-body');
+  if(!tbody) return;
+  if(!items.length){
+    tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--grey);padding:16px">No logs match the current filters.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.slice(0,PAGE).map(l=>{
+    const ts  = l.timestamp.slice(11,23);
+    const cls = l.level==='error'?'lp-error':l.level==='warn'?'lp-warn':'lp-info';
+    const sc  = l.status_code;
+    const scc = sc>=500?'var(--red)':sc>=400?'var(--yellow)':'var(--green)';
+    return `<tr>
+      <td style="color:rgba(255,255,255,.35)">${ts}</td>
+      <td><span class="level-pill ${cls}">${l.level}</span></td>
+      <td style="font-family:'Courier New',monospace;color:var(--cyan);font-size:.72rem">${l.endpoint}</td>
+      <td style="color:${scc};font-weight:700">${sc}</td>
+      <td style="color:var(--grey)">${l.response_time_ms}ms</td>
+    </tr>`;
+  }).join('');
+  const btn=document.getElementById('dlt-more-btn');
+  if(btn) btn.style.display = items.length>PAGE ? 'block' : 'none';
+}
+
+/* filter change listeners */
+['dlt-level','dlt-ep','dlt-search'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el) el.addEventListener('input',renderDashTable);
+});
+document.getElementById('dlt-more-btn')?.addEventListener('click',()=>{
+  dashLogOffset+=25; renderDashTable();
+});
+
+/* dash buttons */
+document.getElementById('dash-refresh-btn')?.addEventListener('click',updateDashboard);
+document.getElementById('dash-auto-btn')?.addEventListener('click',function(){
+  if(dashAutoTimer) return;
+  updateDashboard();
+  dashAutoTimer=setInterval(updateDashboard, 5000);
+  toast3('Auto-refresh started (5s)','tinf');
+  if(document.getElementById('dash-refresh-label')) document.getElementById('dash-refresh-label').textContent='Auto-refreshing every 5s…';
+});
+document.getElementById('dash-stop-btn')?.addEventListener('click',function(){
+  clearInterval(dashAutoTimer); dashAutoTimer=null;
+  toast3('Auto-refresh stopped','tinf');
+});
+document.getElementById('dash-burst-btn')?.addEventListener('click',function(){
+  for(let i=0;i<30;i++){
+    const l=makeLogLine(true);
+    logStore.unshift(l); if(logStore.length>500) logStore.pop();
+  }
+  updateDashboard();
+  toast3('30 burst errors injected into dashboard','terr');
+});
+
+/* initial render */
+updateDashboard();
+
+/* ══════════════════════════════════════════════════
+   PART 4 — CI PIPELINE SIMULATOR
+══════════════════════════════════════════════════ */
+
+const CI_STEPS_PASS = [
+  { id:'pl-lint',   name:'Lint',          delay:0   },
+  { id:'pl-test',   name:'Tests',         delay:1500 },
+  { id:'pl-build',  name:'Build images',  delay:3200 },
+  { id:'pl-push2',  name:'Push to GHCR',  delay:5000 },
+  { id:'pl-deploy', name:'Deploy EC2',    delay:6500 },
+];
+
+const CI_LOG_PASS = [
+  [0,    'run',  '▶ Starting job: test-sample-app'],
+  [200,  'dim',  'Restoring npm cache (sample-app)…'],
+  [600,  'ok',   '✓ Cache restored — 847 packages'],
+  [800,  'cmd',  '$ cd sample-app && npm ci'],
+  [1100, 'ok',   '✓ npm ci — 847 packages'],
+  [1200, 'cmd',  '$ npm run lint'],
+  [1500, 'ok',   '✓ ESLint passed — 0 errors, 0 warnings'],
+  [1700, 'cmd',  '$ npm test'],
+  [2000, 'ok',   '✓ Jest — 21 tests passed (2.1s)'],
+  [2100, 'sec',  '── job: test-collector ──'],
+  [2200, 'cmd',  '$ pip install -r requirements.txt'],
+  [2600, 'ok',   '✓ pip install done'],
+  [2700, 'cmd',  '$ flake8 app/ --max-line-length 100'],
+  [2900, 'ok',   '✓ flake8 — no issues'],
+  [3000, 'cmd',  '$ pytest -v'],
+  [3400, 'ok',   '✓ pytest — 24 passed (1.8s)'],
+  [3500, 'sec',  '── job: build-images (needs: tests ✓) ──'],
+  [3600, 'cmd',  '$ docker build -t log-sample-app ./sample-app'],
+  [4000, 'ok',   '✓ sample-app image built'],
+  [4100, 'cmd',  '$ docker build -t log-collector ./collector'],
+  [4500, 'ok',   '✓ collector image built'],
+  [4600, 'cmd',  '$ docker build -t log-dashboard ./dashboard'],
+  [4900, 'ok',   '✓ dashboard image built'],
+  [5000, 'sec',  '── job: deploy (branch: main) ──'],
+  [5100, 'cmd',  '$ docker push ghcr.io/user/log-monitor/sample-app:latest'],
+  [5600, 'ok',   '✓ sample-app pushed'],
+  [5700, 'cmd',  '$ docker push ghcr.io/user/log-monitor/collector:latest'],
+  [6100, 'ok',   '✓ collector pushed'],
+  [6200, 'cmd',  '$ ssh ubuntu@ec2 "docker compose pull && docker compose up -d"'],
+  [6800, 'ok',   '✓ docker compose up -d — 4 containers started'],
+  [6900, 'cmd',  '$ curl -f http://localhost:3000/api/health'],
+  [7100, 'ok',   '✓ sample-app healthy'],
+  [7200, 'cmd',  '$ curl -f http://localhost:8000/health'],
+  [7400, 'ok',   '✓ collector healthy'],
+  [7500, 'ok',   '✓ Deployment successful! All services running on EC2.'],
+];
+
+const CI_LOG_FAIL = [
+  [0,    'run',  '▶ Starting job: test-sample-app'],
+  [200,  'dim',  'Restoring npm cache…'],
+  [600,  'ok',   '✓ Cache restored'],
+  [700,  'cmd',  '$ npm run lint'],
+  [1000, 'err',  '✗ ESLint: 2 errors found'],
+  [1100, 'err',  '  sample-app/src/app.js:42  no-unused-vars  "requestData" is defined but never used'],
+  [1200, 'err',  '  sample-app/src/app.js:87  eqeqeq         Expected "===" but found "=="'],
+  [1300, 'err',  '✗ job test-sample-app failed — lint errors'],
+  [1400, 'warn', '⏸ build-images skipped (depends on failed job)'],
+  [1500, 'warn', '⏸ deploy skipped'],
+];
+
+function setCiStepStatus(id, statusClass, labelText){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.classList.remove('passing','failed','running');
+  if(statusClass) el.classList.add(statusClass);
+  const badge = el.querySelector('.pl-status');
+  if(badge){
+    badge.className = 'pl-status';
+    const cls = statusClass==='passing'?'ps-pass':statusClass==='failed'?'ps-fail':statusClass==='running'?'ps-run':'ps-skip';
+    badge.classList.add(cls);
+    if(labelText) badge.textContent = labelText;
+  }
+}
+
+function resetPipelineSteps(){
+  ['pl-lint','pl-test','pl-build','pl-push2','pl-deploy'].forEach(id=>{
+    setCiStepStatus(id, '', 'waiting');
+  });
+  document.getElementById('pl-push').classList.remove('passing','failed','running');
+  const badge = document.getElementById('pl-push')?.querySelector('.pl-status');
+  if(badge){ badge.className='pl-status ps-pass'; badge.textContent='trigger'; }
+}
+
+async function runCiSimulation(fail){
+  const body   = document.getElementById('ci-terminal-body');
+  const status = document.getElementById('ci-run-status');
+  body.innerHTML = '';
+  resetPipelineSteps();
+  status.textContent = 'running…';
+  status.style.color = 'var(--yellow)';
+  document.getElementById('run-ci-btn').disabled = true;
+  document.getElementById('fail-ci-btn').disabled = true;
+
+  const logs = fail ? CI_LOG_FAIL : CI_LOG_PASS;
+  const stepTimings = {
+    1500: { id:'pl-lint',   cls:'running', lbl:'running' },
+    3400: { id:'pl-test',   cls:'running', lbl:'running' },
+    3500: { id:'pl-lint',   cls:'passing', lbl:'✓ passed' },
+    4900: { id:'pl-test',   cls:'passing', lbl:'✓ passed' },
+    5000: { id:'pl-build',  cls:'passing', lbl:'✓ built'  },
+    6100: { id:'pl-push2',  cls:'passing', lbl:'✓ pushed' },
+    7400: { id:'pl-deploy', cls:'passing', lbl:'✓ deployed'},
+    // fail timings
+    1000: null,
+  };
+
+  /* inject log line after each delay ms */
+  const startMs = performance.now();
+
+  function appendLine(type, text){
+    const d=document.createElement('div');
+    const cls = type==='ok'?'wf-ok':type==='err'?'wf-err':type==='warn'?'wf-warn':type==='cmd'?'wf-cmd':type==='sec'?'wf-section':'wf-dim';
+    d.className = cls;
+    d.textContent = text;
+    body.appendChild(d);
+    body.scrollTop = body.scrollHeight;
+  }
+
+  for(const [t, type, text] of logs){
+    await delay(t === logs[0][0] ? 0 : Math.max(1, t - (logs[logs.indexOf([t,type,text])-1]?.[0]||0)));
+    appendLine(type, text);
+
+    /* update pipeline step icons at appropriate times */
+    if(!fail){
+      const elapsed = performance.now() - startMs;
+      if(t >= 1200 && t < 1700) setCiStepStatus('pl-lint','running','running…');
+      if(t >= 1700 && t < 2100) setCiStepStatus('pl-test','running','running…');
+      if(t >= 2000) setCiStepStatus('pl-lint','passing','✓ passed');
+      if(t >= 3400) setCiStepStatus('pl-test','passing','✓ passed');
+      if(t >= 4900) setCiStepStatus('pl-build','passing','✓ built');
+      if(t >= 6100) setCiStepStatus('pl-push2','passing','✓ pushed');
+      if(t >= 7400) setCiStepStatus('pl-deploy','passing','✓ live');
+    } else {
+      if(t >= 700)  setCiStepStatus('pl-lint','running','running…');
+      if(t >= 1300) setCiStepStatus('pl-lint','failed','✗ failed');
+    }
+  }
+
+  if(!fail){
+    status.textContent = '✓ All jobs passed';
+    status.style.color = 'var(--green)';
+    toast3('CI/CD pipeline passed — deployed to EC2!','tok');
+  } else {
+    status.textContent = '✗ Lint failed';
+    status.style.color = 'var(--red)';
+    toast3('CI failed — lint errors blocked deployment','terr');
+  }
+  document.getElementById('run-ci-btn').disabled = false;
+  document.getElementById('fail-ci-btn').disabled = false;
+}
+
+document.getElementById('run-ci-btn')?.addEventListener('click', ()=>runCiSimulation(false));
+document.getElementById('fail-ci-btn')?.addEventListener('click', ()=>runCiSimulation(true));
+document.getElementById('reset-ci-btn')?.addEventListener('click', ()=>{
+  document.getElementById('ci-terminal-body').innerHTML='<span style="color:var(--grey)">Click "Simulate CI Run" to watch the pipeline execute…</span>';
+  document.getElementById('ci-run-status').textContent='idle';
+  document.getElementById('ci-run-status').style.color='var(--grey)';
+  resetPipelineSteps();
+});
+</script>
+</body>
+</html>
